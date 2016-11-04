@@ -38,8 +38,8 @@ tests_require = ['numpy']
 # MRCZ version
 major_ver = 0
 minor_ver = 1
-nano_ver = 0
-branch = 'dev'
+nano_ver = 1
+branch = 'a1'
 
 VERSION = "%d.%d.%d%s" % (major_ver, minor_ver, nano_ver, branch)
 # Create the version.py file
@@ -51,7 +51,7 @@ Development Status :: 3 - Alpha
 Intended Audience :: Developers
 Intended Audience :: Information Technology
 Intended Audience :: Science/Research
-License :: OSI Approved :: MIT License
+License :: OSI Approved :: BSD License
 Programming Language :: Python
 Programming Language :: Python :: 2.7
 Programming Language :: Python :: 3.3

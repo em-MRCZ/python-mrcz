@@ -1,5 +1,14 @@
 
-==== 0.1.0dev0 ====
+0.1.1a1
+=======
+
+* Renamed 'cLevel' to 'clevel' to maintain consistency with `blosc` naming 
+  convention.
+* Updated license from MIT to BSD 2-clause.
+
+0.1.0dev0
+=========
 
 Initial commit
+
 
