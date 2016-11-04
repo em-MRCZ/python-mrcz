@@ -1,0 +1,9 @@
+dist
+build
+.eggs
+mrcz.egg-info
+mrcz.wiki
+*.bash
+*.bat
+*.pyc
+
