@@ -39,7 +39,7 @@ tests_require = ['numpy']
 major_ver = 0
 minor_ver = 1
 nano_ver = 1
-branch = 'a1'
+branch = 'a2'
 
 VERSION = "%d.%d.%d%s" % (major_ver, minor_ver, nano_ver, branch)
 # Create the version.py file

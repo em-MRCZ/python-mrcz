@@ -54,7 +54,7 @@ def defaultHeader( ):
     
     header['compressor'] = None
     header['packedBytes'] = 0
-    header['cLevel'] = 1
+    header['clevel'] = 1
     
     header['maxImage'] = 1.0
     header['minImage'] = 0.0
@@ -327,9 +327,9 @@ def readMRCHeader( MRCfilename, endian='le', fileConvention = "imod", pixelunits
 def MRCExport( input_image, MRCfilename, endian='le', dtype=None, 
                pixelsize=[0.1,0.1,0.1], pixelunits=u"nm", shape=None, 
                voltage = 0.0, C3 = 0.0, gain = 1.0,
-               compressor=None, cLevel = 1, n_threads=None, quickStats=True ):
+               compressor=None, clevel = 1, n_threads=None, quickStats=True ):
     """
-    MRCExport( input_image, MRCfilename, endian='le', shape=None, compressor=None, cLevel = 1 )
+    MRCExport( input_image, MRCfilename, endian='le', shape=None, compressor=None, clevel = 1 )
     Created on Thu Apr 02 15:56:34 2015
     @author: Robert A. McLeod
     @email: robert.mcleod@unibas.ch
@@ -355,11 +355,11 @@ def MRCExport( input_image, MRCfilename, endian='le', dtype=None,
         
         compressor is a choice of 'lz4', 'zlib', or 'zstd', plus 'blosclz', 'lz4hc'  
         'zstd' generally gives the best compression performance, and is still almost 
-           as fast as 'lz4' with cLevel = 1
+           as fast as 'lz4' with clevel = 1
         'zlib' is easiest to decompress with other utilities.
         
-        cLevel is the compression level, 1 is fastest, 11 is very-slow.  The compression
-        ratio will rise slowly with cLevel.
+        clevel is the compression level, 1 is fastest, 11 is very-slow.  The compression
+        ratio will rise slowly with clevel.
         
         n_threads is number of threads to use for blosc compression
         
@@ -389,7 +389,7 @@ def MRCExport( input_image, MRCfilename, endian='le', dtype=None,
     header['pixelsize'] = pixelsize
     header['pixelunits'] = pixelunits
     header['compressor'] = compressor
-    header['cLevel'] = cLevel
+    header['clevel'] = clevel
     header['shape'] = shape
     
     # This overhead calculation is annoying but many 3rd party tools that use 
@@ -414,7 +414,7 @@ def MRCExport( input_image, MRCfilename, endian='le', dtype=None,
         header['gain'] = 1.0
     
     header['compressor'] = compressor
-    header['cLevel'] = cLevel
+    header['clevel'] = clevel
     if n_threads == None and bloscPresent:
         n_threads = blosc.detect_number_of_cores()
     header['n_threads'] = n_threads
@@ -444,7 +444,7 @@ def __MRCExport( input_image, header, MRCfilename, endchar = '<' ):
                 and REVERSE_COMPRESSOR_ENUM[header['compressor']] > 0):
             # compressed MRCZ
             print( "Compressing %s with compressor %s%d" %
-                    (MRCfilename, header['compressor'], header['cLevel'] ) )
+                    (MRCfilename, header['compressor'], header['clevel'] ) )
             
             
             
@@ -476,12 +476,12 @@ def __MRCExport( input_image, header, MRCfilename, endchar = '<' ):
 #                compressedData = blosc.compress_ptr( input_image.__array_interface__['data'][0] + int(J*typeSize*blockSize),
 #                           blockSize, 
 #                           typeSize,
-#                           clevel=header['cLevel'], 
+#                           clevel=header['clevel'], 
 #                           shuffle=blosc.BITSHUFFLE, 
 #                           cname=header['compressor'] )
                 compressedData = blosc.compress( input_image[J,:,:].tobytes(),
                             typeSize, 
-                            clevel=header['cLevel'], 
+                            clevel=header['clevel'], 
                             shuffle=blosc.BITSHUFFLE,
                             cname=header['compressor'] )
                 f.write( compressedData )
