@@ -11,7 +11,7 @@ to shrink files on disk and greatly accelerate file input/output for the era of 
 
 `mrcz` is currently in alpha. 
 
-For help on installation please see the wiki page: https://github.com/MRCZ/python-mrcz/wiki
+For help on installation please see the wiki page: https://github.com/em-MRCZ/python-mrcz/wiki
 
 MECZ has the following dependencies:
 
