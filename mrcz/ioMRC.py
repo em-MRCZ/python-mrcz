@@ -14,7 +14,7 @@ Testing:
 
 http://emportal.nysbc.org/mrc2014/
 
-Tested output on: Gatan GMS, IMOD, Chimera, Relion
+Tested output on: Gatan GMS, IMOD, Chimera, Relion, MotionCorr, UnBlur
 """
 
 import os, os.path
@@ -32,14 +32,18 @@ except:
 BUFFERSIZE = 2**22 
 
 # ENUM dicts for our various Python to MRC constant conversions
-COMPRESSOR_ENUM = { 0:None, 1:'zlib', 2:'lz4', 3:'lz4hc', 4:'blosclz', 5:'zstd' }
-REVERSE_COMPRESSOR_ENUM = { None:0, 'zlib':1, 'lz4':2, 'lz4hc':3, 'blosclz':4, 'zstd':5 }
+COMPRESSOR_ENUM = { 0:None, 1:'blosclz', 2:'lz4', 3:'lz4hc', 4:'snappy', 5:'zlib', 6:'zstd' }
+REVERSE_COMPRESSOR_ENUM = { None:0, 'blosclz':1, 'lz4':2, 'lz4hc':2, 'snappy':4, 'zlib':5, 'zstd':6 }
 
-IMOD_ENUM = { 0: 'i1', 1:'i2', 2:'f4', 4:'c8', 101:'u1' }
+MRC_COMP_RATIO = 1000  
+IMOD_ENUM = { 0: 'i1', 1:'i2', 2:'f4', 4:'c8', 6:'u2', 101:'u1' }
 EMAN2_ENUM = { 1: 'i1', 2:'u1', 3:'i2', 4:'u2', 5:'i4', 6:'u4', 7:'f4' }
-REVERSE_IMOD_ENUM = { 'int8':0, 'i1':0, 'uint4':101, 'int16':1, 'i2':1,
-                   'float64':2, 'f8':2, 'float32':2, 'f4':2,
-                   'complex128':4, 'c16':4, 'complex64':4, 'c8':4 }
+REVERSE_IMOD_ENUM = { 'int8':0, 'i1':0, 
+                      'uint4':101, 
+                      'int16':1, 'i2':1,
+                      'uint16':6, 'u2':6,
+                      'float64':2, 'f8':2, 'float32':2, 'f4':2,
+                      'complex128':4, 'c16':4, 'complex64':4, 'c8':4 }
 
 def defaultHeader( ):
     """
@@ -237,17 +241,18 @@ def readMRCHeader( MRCfilename, endian='le', fileConvention = "imod", pixelunits
     
         header['MRCtype'] = int( np.fromfile( f, dtype=endchar+'i4', count=1 )[0] )
         if header['MRCtype'] > 16000000: # Hack to fix lack of endian indication in the file header
-            # Endianess is backward
+            # Endianess found to be backward
             header['MRCtype'] = int( np.asarray( header['MRCtype'] ).byteswap()[0] )
             header['dimensions'] = header['dimensions'].byteswap()
             if endchar == '<':
                 endchar = '>' 
             else:
                 endchar = '<'
-                
-        # Extract compressor from dtype > 10000
-        header['compressor'] = COMPRESSOR_ENUM[ np.floor_divide(header['MRCtype'], 10000) ]
-        header['MRCtype'] = np.remainder( header['MRCtype'], 10000 )
+        
+        # Extract compressor from dtype > 1000
+        header['compressor'] = COMPRESSOR_ENUM[ np.floor_divide(header['MRCtype'], MRC_COMP_RATIO) ]
+        header['MRCtype'] = np.mod( header['MRCtype'], MRC_COMP_RATIO )
+        print( "compressor: %s, MRCtype: %s" % (str(header['compressor']),str(header['MRCtype'])) )
         
         fileConvention = fileConvention.lower()
         if fileConvention == "imod":
@@ -546,7 +551,7 @@ def writeMRCHeader( f, header, endchar = '<' ):
                 and header['compressor'] in REVERSE_COMPRESSOR_ENUM 
                 and REVERSE_COMPRESSOR_ENUM[header['compressor']] > 0):
         header['compressor'] = header['compressor'].lower()
-        MRCmode += 10000*REVERSE_COMPRESSOR_ENUM[ header['compressor'] ]
+        MRCmode += MRC_COMP_RATIO * REVERSE_COMPRESSOR_ENUM[ header['compressor'] ]
         
         # How many bytes in an MRCZ file, so that the file can be appended-to.
         try:
