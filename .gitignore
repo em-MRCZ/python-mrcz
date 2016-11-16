@@ -3,7 +3,6 @@ build
 .eggs
 mrcz.egg-info
 mrcz.wiki
-*.bash
-*.bat
 *.pyc
+doc/_build
 

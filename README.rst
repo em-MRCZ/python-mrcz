@@ -1,5 +1,5 @@
 ============================================================
-MRCZ Compressed MRC file-format package (Python 2.7/3.3-3.5)
+MRCZ meta-compressed file-format package (Python 2.7/3.3-3.5)
 ============================================================
 
 Author: Robert A. McLeod

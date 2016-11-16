@@ -75,37 +75,56 @@ def defaultHeader( ):
     
     return header
     
-def MRCImport( MRCfilename, useMemmap = False, endian='le', 
-              pixelunits=u'nm', fileConvention = "imod", returnHeader = False,
-              n_threads = None, reverseStripes=False ):
+    
+
+#def MRCImport( MRCfilename, useMemmap = False, endian='le', 
+#              pixelunits=u'nm', fileConvention = "imod", 
+#              n_threads = None ):
+    
+    
+def readMRC( MRCfilename, useMemmap = False, endian='le', 
+              pixelunits=u'\AA', fileConvention = "imod", 
+              n_threads = None ):
     """
-    MRCImport( MRCfilename, useMemmap = False, endian='le', fileConvention = "default" )
+    readMRC
+    
     Created on Thu Apr 09 11:05:07 2015
     @author: Robert A. McLeod
-    @email: robert.mcleod@unibas.ch
     
-    This is a bare-bones import script, it just imports the image data and returns 
-    it in an numpy array. 
+    Imports an MRC/Z file as a NumPy array and a meta-data dict.  
     
-    Can also return the header as the second argument, with returnHeader = True
-    
-    endian can be big-endian == 'be' or little-endian == 'le'
-    """
-    # Check to see if it end's with MRC or MRCS, if not, add the extension
-
+    Usage:
         
+    [data, header] = readMRC( "my_filename.mrcz", seMemmap = False, endian='le', 
+              pixelunits=u'\AA', fileConvention = "imod", n_threads = None )
+    
+    * data is a NumPy array.
+        
+    * header is a dict with various fields relating to the MRC header information.
+    
+    * pixelunits can be '\AA' (Angstoms), 'nm', '\mum', or 'pm'.  Internally pixel 
+      sizes are always encoded in Angstroms in the MRC file.
+        
+    * fileConvention can be 'imod' (equivalent to CCP4) or 'eman2', which is
+      only partially supported at present.
+    
+     * endian can be big-endian as 'be' or little-endian as 'le'
+        
+     * n_threads is the number of threads to use for decompression, defaults to 
+       all virtual cores.
+        
+    """
     with open( MRCfilename, 'rb', buffering=BUFFERSIZE ) as f:
         # Read in header as a dict
         
         header = readMRCHeader( MRCfilename, endian=endian, fileConvention = "imod", pixelunits=pixelunits )
         # Support for compressed data in MRCZ
-        #print( "DEBUG: compressor = %s" % header['compressor'] )
-        #print( "DEBUG: compressor enum = %d" % REVERSE_COMPRESSOR_ENUM[header['compressor']] )
+
         
         if ( (header['compressor'] in REVERSE_COMPRESSOR_ENUM) 
             and (REVERSE_COMPRESSOR_ENUM[header['compressor']] > 0) ):
             return __MRCZImport( f, header, endian=endian, fileConvention = fileConvention, 
-                                returnHeader = returnHeader, n_threads=n_threads )
+                                n_threads=n_threads )
         # Else save as MRC file
                                 
         f.seek(1024 + header['extendedBytes'])
@@ -123,21 +142,19 @@ def MRCImport( MRCfilename, useMemmap = False, endian='le',
             interlaced_image = image
             
             image = np.empty( np.product(header['dimensions']), dtype=header['dtype'] )
-            if bool(reverseStripes):
-                # Bit-shift and Bit-and to seperate decimated pixels
-                image[1::2] = np.left_shift(interlaced_image,4) / 15
-                image[0::2] = np.right_shift(interlaced_image,4)
-            else: # Default
-                image[0::2] = np.left_shift(interlaced_image,4) / 15
-                image[1::2] = np.right_shift(interlaced_image,4)
+            #if bool(reverseStripes):
+            #    # Bit-shift and Bit-and to seperate decimated pixels
+            #    image[1::2] = np.left_shift(interlaced_image,4) / 15
+            #    image[0::2] = np.right_shift(interlaced_image,4)
+            #else: # Default
+            image[0::2] = np.left_shift(interlaced_image,4) / 15
+            image[1::2] = np.right_shift(interlaced_image,4)
 
         # print( "DEBUG 2: ioMRC.MRCImport # nans: %d" % np.sum(np.isnan(image)) )
         image = np.squeeze( np.reshape( image, header['dimensions'] ) )
         # print( "DEBUG 3: ioMRC.MRCImport # nans: %d" % np.sum(np.isnan(image)) )
-        if returnHeader:
-            return image, header
-        else:
-            return image
+        return image, header
+
        
 def __MRCZImport( f, header, endian='le', fileConvention = "imod", returnHeader = False, n_threads=None ):
     """
@@ -161,23 +178,16 @@ def __MRCZImport( f, header, endian='le', fileConvention = "imod", returnHeader 
     else:
         blosc.nthreads = n_threads
         
-
-
-    #bytesFromFile = f.read( header['packedBytes'] )
-
-    
     image = np.empty( header['dimensions'], dtype=header['dtype'] )
-        # We can read MRC files that don't start at 1024 bytes, but not write them 
+    
+    # We can read MRC2014 files that don't start at 1024 bytes, but not write them 
     # (as they are non-standard and we don't like breaking stuff)
     blosc_chunk_pos = 1024 + header['extendedBytes']
     for J in np.arange(image.shape[0]):
         f.seek( blosc_chunk_pos )
         ( (nbytes, blockSize, ctbytes ), (ver_info) ) = readBloscHeader(f)
-        # typeSize = ver_info[3]
-        # print( "nbytes = %d, blockSize = %d, ctbytes = %d" % (nbytes, blockSize, ctbytes ) )
         f.seek(blosc_chunk_pos)
-        # RAM: I think that blosc includes the 16 header bytes in ctbytes...
-        # blosc.decompress_ptr( f.read( ctbytes ), image.__array_interface__['data'][0]+int(J*typeSize*nbytes)  )
+        # blosc includes the 16 header bytes in ctbytes
         image[J,:,:] = np.reshape( 
             np.frombuffer( blosc.decompress( f.read( ctbytes ) ), dtype=image.dtype ),
             image.shape[1:] )
@@ -186,10 +196,8 @@ def __MRCZImport( f, header, endian='le', fileConvention = "imod", returnHeader 
         pass
     
     
-
-    
     if header['MRCtype'] == 101:
-        # Seems the 4-bit is interlaced ...
+        # Seems the 4-bit is interlaced 
         interlaced_image = image
             
         image = np.empty( np.product(header['dimensions']), dtype=header['dtype'] )
@@ -223,7 +231,8 @@ def readBloscHeader( filehandle ):
     [nbytes, blocksize, ctbytes] = np.fromfile( filehandle, dtype='uint32', count=3 )
     return ( [nbytes, blocksize, ctbytes], [version, versionlz, flags, typesize] )
     
-def readMRCHeader( MRCfilename, endian='le', fileConvention = "imod", pixelunits=u'nm' ):
+    
+def readMRCHeader( MRCfilename, endian='le', fileConvention = "imod", pixelunits=u'\AA' ):
     """
     Reads in the first 1024 bytes from an MRC file and parses it into a Python dictionary, yielding 
     header information.
@@ -240,7 +249,8 @@ def readMRCHeader( MRCfilename, endian='le', fileConvention = "imod", pixelunits
         header['dimensions'] = np.flipud( np.fromfile( f, dtype=endchar+'i4', count=3 ) )
     
         header['MRCtype'] = int( np.fromfile( f, dtype=endchar+'i4', count=1 )[0] )
-        if header['MRCtype'] > 16000000: # Hack to fix lack of endian indication in the file header
+        # Hack to fix lack of standard endian indication in the file header
+        if header['MRCtype'] > 16000000: 
             # Endianess found to be backward
             header['MRCtype'] = int( np.asarray( header['MRCtype'] ).byteswap()[0] )
             header['dimensions'] = header['dimensions'].byteswap()
@@ -249,7 +259,7 @@ def readMRCHeader( MRCfilename, endian='le', fileConvention = "imod", pixelunits
             else:
                 endchar = '<'
         
-        # Extract compressor from dtype > 1000
+        # Extract compressor from dtype > MRC_COMP_RATIO
         header['compressor'] = COMPRESSOR_ENUM[ np.floor_divide(header['MRCtype'], MRC_COMP_RATIO) ]
         header['MRCtype'] = np.mod( header['MRCtype'], MRC_COMP_RATIO )
         print( "compressor: %s, MRCtype: %s" % (str(header['compressor']),str(header['MRCtype'])) )
@@ -275,14 +285,13 @@ def readMRCHeader( MRCfilename, endian='le', fileConvention = "imod", pixelunits
             except:
                 raise ValueError( "Error: unrecognized IMOD-MRC data type = " + str(header['MRCtype']) )
                 
-
         # Apply endian-ness to NumPy dtype
         header['dtype'] = endchar + header['dtype']
         # Read in pixelsize
         f.seek(40)
         cellsize = np.fromfile( f, dtype=endchar + 'f4', count=3 )
         header['pixelsize'] = np.flipud( cellsize ) / header['dimensions']
-        # MRC is Angstroms, so
+        # MRC is Angstroms by convention
 
         header['pixelunits'] = pixelunits
             
@@ -300,7 +309,6 @@ def readMRCHeader( MRCfilename, endian='le', fileConvention = "imod", pixelunits
         f.seek(64)
         # Currently I don't use this
         # axesTranpose = np.fromfile( f, dtype=endchar + 'i4', count=3 ) - 1
-        
         
         # Read in statistics
         f.seek(76)
@@ -329,15 +337,14 @@ def readMRCHeader( MRCfilename, endian='le', fileConvention = "imod", pixelunits
         # How many bytes in an MRC
         return header
         
-def MRCExport( input_image, MRCfilename, endian='le', dtype=None, 
-               pixelsize=[0.1,0.1,0.1], pixelunits=u"nm", shape=None, 
+def writeMRC( input_image, MRCfilename, endian='le', dtype=None, 
+               pixelsize=[0.1,0.1,0.1], pixelunits=u"\AA", shape=None, 
                voltage = 0.0, C3 = 0.0, gain = 1.0,
                compressor=None, clevel = 1, n_threads=None, quickStats=True ):
     """
     MRCExport( input_image, MRCfilename, endian='le', shape=None, compressor=None, clevel = 1 )
     Created on Thu Apr 02 15:56:34 2015
     @author: Robert A. McLeod
-    @email: robert.mcleod@unibas.ch
     
     Given a numpy 2-D or 3-D array `input_image` write it has an MRC file `MRCfilename`.
     
@@ -345,12 +352,12 @@ def MRCExport( input_image, MRCfilename, endian='le', dtype=None,
         
         pixelsize is [z,y,x] pixel size (singleton values are ok for square/cubic pixels)
         
-        pixelunits is "\AA" for Angstroms, "pm" for picometers, "\mum" for micrometers, 
+        pixelunits is "AA" for Angstroms, "pm" for picometers, "\mum" for micrometers, 
         or "nm" for nanometers.  MRC standard is always Angstroms, so pixelsize 
         is converted internally from nm to Angstroms if necessary
         
         shape is only used if you want to later append to the file, such as merging together Relion particles
-        for Frealign.
+        for Frealign.  Not recommended and only present for legicacy reasons.
         
         voltage is accelerating potential in keV, defaults to 300.0
         
@@ -478,12 +485,6 @@ def __MRCExport( input_image, header, MRCfilename, endchar = '<' ):
                     raise MemoryError( "MRCExport: Tried to reference past end of ndarray %d > %d" % (int(J*typeSize*chunkSize), input_image.nbytes ) )
                     
 
-#                compressedData = blosc.compress_ptr( input_image.__array_interface__['data'][0] + int(J*typeSize*blockSize),
-#                           blockSize, 
-#                           typeSize,
-#                           clevel=header['clevel'], 
-#                           shuffle=blosc.BITSHUFFLE, 
-#                           cname=header['compressor'] )
                 compressedData = blosc.compress( input_image[J,:,:].tobytes(),
                             typeSize, 
                             clevel=header['clevel'], 
@@ -501,17 +502,11 @@ def __MRCExport( input_image, header, MRCfilename, endchar = '<' ):
 
             
         else: # vanilla MRC
-            # print( "ioMRC.MRCExport: nans: %d" % np.sum( np.isnan(input_image)))
             if header['dtype'] != 'uint4' and input_image.dtype != header['dtype']:
                 input_image = input_image.astype( header['dtype'] )
             
-            # print( "ioMRC.MRCExport: nans: %d" % np.sum( np.isnan(input_image)))
-            #for J in np.arange( input_image.shape[0] ):
-            #    f.write( input_image[J,:,:].tobytes() )
             input_image.tofile(f)
             
-            # We have to rewind to header to insert 'packedBytes'
-            # Get a header and write it to disk
             
     return 
     
@@ -565,7 +560,6 @@ def writeMRCHeader( f, header, endchar = '<' ):
     f.seek(12)
     MRCmode.tofile(f)
     
-
     # Print NXSTART, NYSTART, NZSTART
     np.array( [0,0,0], dtype=endchar+"i4" ).tofile(f)
     # Print MX, MY, MZ, the number of pixels

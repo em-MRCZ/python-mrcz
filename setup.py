@@ -38,8 +38,8 @@ tests_require = ['numpy']
 # MRCZ version
 major_ver = 0
 minor_ver = 1
-nano_ver = 1
-branch = 'a4'
+nano_ver = 2
+branch = 'a0'
 
 VERSION = "%d.%d.%d%s" % (major_ver, minor_ver, nano_ver, branch)
 # Create the version.py file
@@ -65,17 +65,20 @@ Operating System :: Unix
 
 setup(name = "mrcz",
       version = VERSION,
-      description = 'MRCZ compressed MRC image format',
+      description = 'MRCZ meta-compressed image file-format library',
       long_description = """\
 
 MRCZ is a highly optimized compressed version of the popular electron microscopy 
-MRC image format.  It uses the Blosc library as a backend.
+MRC image format.  It uses the Blosc meta-compressor library as a backend.  It 
+can use a number of high-performance loseless compression codecs such as 'lz4' 
+and 'zstd', it can apply bit-shuffling filters, and operates compression in a 
+blocked and multi-threaded way to take advantage of modern multi-core CPUs.
 
 """,
       classifiers = [c for c in classifiers.split("\n") if c],
       author = 'Robert A. McLeod',
       author_email = 'robbmcleod@gmail.com',
-      url = 'http://github.com/mrcz/python-mrcz',
+      url = 'http://github.com/em-MRCZ/python-mrcz',
       license = 'http://www.opensource.org/licenses/mit-license.php',
       platforms = ['any'],
 
