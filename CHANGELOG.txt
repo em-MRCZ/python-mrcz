@@ -1,3 +1,24 @@
+0.1.4a1
+=======
+
+* Fixed a bug with the machine-stamp not being converted to bytes properly.
+
+0.1.4a0
+=======
+
+* Fixed a bug in import of mrcz from ReliablePy
+
+
+0.1.3a2
+=======
+
+* Added ReliablePy, an interface for Relion .star and Frealign .par files.
+* Fixes to maintain cross-compatibility with c-mrcz.  Main functions are
+  readMRC and writeMRC.  readMRC always returns a header now.
+* Added mrcz_test suite, which also tests c-mrcz if it's found in the path.
+* Fixed bugs related to mrcz_test.py
+* Migrated project to BitBucket
+
 
 0.1.1a1
 =======

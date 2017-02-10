@@ -38,12 +38,12 @@ tests_require = ['numpy']
 # MRCZ version
 major_ver = 0
 minor_ver = 1
-nano_ver = 2
-branch = 'a0'
+nano_ver = 4
+branch = 'a2'
 
 VERSION = "%d.%d.%d%s" % (major_ver, minor_ver, nano_ver, branch)
 # Create the version.py file
-open('mrcz/__version.py__', 'w').write('__version__ = "%s"\n' % VERSION)
+open('mrcz/__version__.py', 'w').write('__version__ = "%s"\n' % VERSION)
 
 # Global variables
 classifiers = """\
