@@ -44,12 +44,9 @@ import time
 from collections import OrderedDict
 
 # The following are not requirements of python-mrcz, only ReliablePy:
-try: import matplotlib.pyplot as plt
-except: pass
-try: import scipy
-except: pass
-try: import pandas
-except: pass
+import matplotlib.pyplot as plt
+import scipy
+import pandas
 
 # Static variable decorator
 def static_var(varname, value):

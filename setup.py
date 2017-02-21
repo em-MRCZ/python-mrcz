@@ -39,7 +39,7 @@ tests_require = ['numpy']
 major_ver = 0
 minor_ver = 1
 nano_ver = 4
-branch = 'a3'
+branch = 'a4'
 
 VERSION = "%d.%d.%d%s" % (major_ver, minor_ver, nano_ver, branch)
 # Create the version.py file
@@ -57,6 +57,7 @@ Programming Language :: Python :: 2.7
 Programming Language :: Python :: 3.3
 Programming Language :: Python :: 3.4
 Programming Language :: Python :: 3.5
+Programming Language :: Python :: 3.6
 Topic :: Software Development :: Libraries :: Python Modules
 Topic :: System :: Archiving :: Compression
 Operating System :: Microsoft :: Windows

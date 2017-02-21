@@ -30,7 +30,9 @@ from .ioMRC import readMRC, writeMRC
 from .ioDM import readDM4
 from .__version__ import __version__
 from . import test_mrcz as test
-from . import ReliablePy
+try: from . import ReliablePy
+except: pass
+
 
 
 
