@@ -110,13 +110,14 @@ def readMRC( MRCfilename, useMemmap = False, endian='le',
     * fileConvention can be 'imod' (equivalent to CCP4) or 'eman2', which is
       only partially supported at present.
     
-     * endian can be big-endian as 'be' or little-endian as 'le'
+    * endian can be big-endian as 'be' or little-endian as 'le'
         
-     * n_threads is the number of threads to use for decompression, defaults to 
+    * n_threads is the number of threads to use for decompression, defaults to 
        all virtual cores.
 
-    * idx is the index of an image in the stack, or slice in a volume, if only one image is to be read. Index of first image is 0. A negative index can be used to count backwards. If omitted, will read whole file. Compression is currently not supported with this option.
-        
+    * idx = (first, last) is a tuple with first (inclusive) and last (not inclusive) indices of images to be read from the stack. Index of first image is 0. Negative indices can be used to count backwards. A singleton integer can be provided to read only one image. If omitted, will read whole file. Compression is currently not supported with this option.
+
+
     """
 
     with open( MRCfilename, 'rb', buffering=BUFFERSIZE ) as f:
@@ -134,14 +135,24 @@ def readMRC( MRCfilename, useMemmap = False, endian='le',
         # Else save as MRC file
 
         if idx != None:
-        # If a single image was requested:
+        # If specific images were requested:
         # TO DO: add support to read all images within a range at once
 
             if header['compressor'] != None:
 
                 raise RuntimeError( "Reading from arbitrary positions not supported for compressed files. Compressor = %s" % header['compressor'] )
 
-            idx = int(idx)
+            if np.isscalar( idx ):
+
+                indices = np.array( [idx, idx], dtype='int' )
+
+            else:
+
+                indices = np.array( idx, dtype='int' )
+
+            # Convert to old way:
+            idx = indices[0]
+            n = indices[1] - indices[0]
 
             if idx < 0:
 
@@ -153,18 +164,26 @@ def readMRC( MRCfilename, useMemmap = False, endian='le',
 
                 raise ValueError( "Error: image or slice index out of range. idx = %d, z_dimension = %d" % (idx, header['dimensions'][0]) )
 
+            elif idx + n > header['dimensions'][0]:
+
+            	raise ValueError( "Error: image or slice index out of range. idx + n = %d, z_dimension = %d" % (idx + n, header['dimensions'][0]) )
+
+            elif n < 1:
+
+            	raise ValueError( "Error: n must be >= 1. n = %d" % n )
+
             else:
 
                 # We adjust the dimensions of the returned image in the header:
-                header['dimensions'][0] = 1
+                header['dimensions'][0] = n
 
                 # This offset will be applied to f.seek():
-                offset = idx * np.product( header['dimensions'] ) * np.dtype( header['dtype'] ).itemsize
+                offset = idx * np.product( header['dimensions'][1:] ) * np.dtype( header['dtype'] ).itemsize
 
         else:
 
             offset = 0
-                                
+
         f.seek(1024 + header['extendedBytes'] + offset)
         if bool(useMemmap):
             image = np.memmap( f, dtype=header['dtype'], 
@@ -172,7 +191,7 @@ def readMRC( MRCfilename, useMemmap = False, endian='le',
                               shape=(header['dimensions'][0],header['dimensions'][1],header['dimensions'][2]) )
         else:
             image = np.fromfile( f, dtype=header['dtype'], 
-                                count=np.product(header['dimensions']) )
+                                count=np.product( header['dimensions'] ) )
                                 
         # print( "DEBUG 1: ioMRC.MRCImport # nans: %d" % np.sum(np.isnan(image)) )    
         if header['MRCtype'] == 101:
