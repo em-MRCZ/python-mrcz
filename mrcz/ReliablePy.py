@@ -35,14 +35,21 @@ from __future__ import division, print_function, absolute_import
 
 
 from . import ioDM, ioMRC
-import matplotlib.pyplot as plt
+
 import numpy as np
 import os, os.path
 import glob
 import time
-import scipy
+
 from collections import OrderedDict
-import pandas
+
+# The following are not requirements of python-mrcz, only ReliablePy:
+try: import matplotlib.pyplot as plt
+except: pass
+try: import scipy
+except: pass
+try: import pandas
+except: pass
 
 # Static variable decorator
 def static_var(varname, value):
