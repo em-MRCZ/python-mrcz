@@ -26,6 +26,9 @@ try:
     import blosc
     # Block size is set at compile time to fit into L1 cache
     bloscPresent = True
+    # For background operations we want to release the GIL in blosc operations and 
+    # file IO operations.
+    blosc.set_releasegil(True)
 except:
     bloscPresent = False
     print( "blosc compressor not found, MRCZ format disabled." )
