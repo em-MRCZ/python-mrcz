@@ -37,9 +37,9 @@ tests_require = ['numpy']
 
 # MRCZ version
 major_ver = 0
-minor_ver = 1
-nano_ver = 4
-branch = 'a4'
+minor_ver = 2
+nano_ver = 0
+branch = 'a0'
 
 VERSION = "%d.%d.%d%s" % (major_ver, minor_ver, nano_ver, branch)
 # Create the version.py file

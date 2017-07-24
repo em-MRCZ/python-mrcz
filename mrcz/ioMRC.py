@@ -21,6 +21,7 @@ Tested output on: Gatan GMS, IMOD, Chimera, Relion, MotionCorr, UnBlur
 
 import os, os.path
 import numpy as np
+import threading
 try: 
     import blosc
     # Block size is set at compile time to fit into L1 cache
@@ -397,7 +398,7 @@ def writeMRC( input_image, MRCfilename, endian='le', dtype=None,
                voltage = 0.0, C3 = 0.0, gain = 1.0,
                compressor=None, clevel = 1, n_threads=None, quickStats=True, idx = None ):
     """
-    MRCExport( input_image, MRCfilename, endian='le', shape=None, compressor=None, clevel = 1 )
+    writeMRC( input_image, MRCfilename, endian='le', shape=None, compressor=None, clevel = 1 )
     Created on Thu Apr 02 15:56:34 2015
     @author: Robert A. McLeod
     
@@ -792,3 +793,51 @@ def writeMRCHeader( f, header, endchar = '<' ):
     
 
     return  
+
+def bg_writeMRC( *args, **kwargs ):
+    """
+    bg_writeMRC( input_image, MRCfilename, endian='le', shape=None, compressor=None, clevel = 1 )
+    @author: Robert A. McLeod
+
+    Calls writeMRC in a seperate thread and executes it in the background. Returns the thread 
+    object, so if necessary you can call `thread.join()` to wait for the write to finish.
+    
+    Given a numpy 2-D or 3-D array `input_image` write it has an MRC file `MRCfilename`.
+    
+        dtype will cast the data before writing it.
+        
+        pixelsize is [z,y,x] pixel size (singleton values are ok for square/cubic pixels)
+        
+        pixelunits is "AA" for Angstroms, "pm" for picometers, "\mum" for micrometers, 
+        or "nm" for nanometers.  MRC standard is always Angstroms, so pixelsize 
+        is converted internally from nm to Angstroms if necessary
+        
+        shape is only used if you want to later append to the file, such as merging together Relion particles
+        for Frealign.  Not recommended and only present for legicacy reasons.
+        
+        voltage is accelerating potential in keV, defaults to 300.0
+        
+        C3 is spherical aberration in mm, defaults to 2.7 mm
+        
+        gain is detector gain (counts/primary electron), defaults to 1.0 (for counting camera)
+        
+        compressor is a choice of 'lz4', 'zlib', or 'zstd', plus 'blosclz', 'lz4hc'  
+        'zstd' generally gives the best compression performance, and is still almost 
+           as fast as 'lz4' with clevel = 1
+        'zlib' is easiest to decompress with other utilities.
+        
+        clevel is the compression level, 1 is fastest, 11 is very-slow.  The compression
+        ratio will rise slowly with clevel.
+        
+        n_threads is number of threads to use for blosc compression
+        
+        quickStats = True estimates the image mean, min, max from the first frame only,
+        which saves a lot of computational time for stacks.
+
+        idx can be used to write an image or set of images starting at a specific position in the MRC file (which may already exist). Index of first image is 0. A negative index can be used to count backwards. If omitted, will write whole stack to file. If writing to an existing file, compression or extended MRC2014 headers are currently not supported with this option.
+    
+    Note that MRC definitions are not consistent.  Generally we support the IMOD schema.
+    """
+    bgThread = threading.Thread( target=writeMRC, args=args, kwargs=kwargs )
+    bgThread.start()
+    return bgThread
