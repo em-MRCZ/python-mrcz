@@ -22,6 +22,7 @@ Tested output on: Gatan GMS, IMOD, Chimera, Relion, MotionCorr, UnBlur
 import os, os.path
 import numpy as np
 import threading
+from concurrent.futures import ThreadPoolExecutor
 try: 
     import blosc
     # Block size is set at compile time to fit into L1 cache
@@ -31,7 +32,12 @@ try:
     blosc.set_releasegil(True)
 except:
     bloscPresent = False
-    print( "blosc compressor not found, MRCZ format disabled." )
+    print( "`blosc` meta-compression library not found, file compression disabled." )
+try: 
+    import rapidjson as json
+except ImportError:
+    import json
+    print( "`python-rapidjson` not found, using builtin `json` instead." )
 
 # Buffer for file I?O
 # Quite arbitrary, in bytes (hand-optimized)
@@ -42,21 +48,53 @@ COMPRESSOR_ENUM = { 0:None, 1:'blosclz', 2:'lz4', 3:'lz4hc', 4:'snappy', 5:'zlib
 REVERSE_COMPRESSOR_ENUM = { None:0, 'blosclz':1, 'lz4':2, 'lz4hc':2, 'snappy':4, 'zlib':5, 'zstd':6 }
 
 MRC_COMP_RATIO = 1000  
-IMOD_ENUM = { 0: 'i1', 1:'i2', 2:'f4', 4:'c8', 6:'u2', 101:'u1' }
+CCPEM_ENUM = { 0: 'i1', 1:'i2', 2:'f4', 4:'c8', 6:'u2', 101:'u1' }
 EMAN2_ENUM = { 1: 'i1', 2:'u1', 3:'i2', 4:'u2', 5:'i4', 6:'u4', 7:'f4' }
-REVERSE_IMOD_ENUM = { 'int8':0, 'i1':0, 
+REVERSE_CCPEM_ENUM = { 'int8':0, 'i1':0, 
                       'uint4':101, 
                       'int16':1, 'i2':1,
                       'uint16':6, 'u2':6,
                       'float64':2, 'f8':2, 'float32':2, 'f4':2,
                       'complex128':4, 'c16':4, 'complex64':4, 'c8':4 }
 
-def defaultHeader( ):
+
+_asyncExecutor = ThreadPoolExecutor( max_workers = 1 )
+def setAsyncWorkers( N_workers ):
+    """
+    setAsyncWorkers( N_workers )
+
+    Sets the maximum number of background workers that can be used for reading 
+    or writing with the functions.  Defaults to 1. Generally when writing 
+    to hard drives use 1 worker.  For SSDs and parallel file systems (PFS) 
+    network drives more workers can accelerate file IO rates.
+    
+    Some test results, 30 files, each 10 x 2048 x 2048 x float-32, on a CPU
+    with 4 physical cores:
+
+        HD, 1 worker:   42.0 s
+        HD, 2 workers:  50.0 s
+        HD, 4 workers:  50.4 s
+        SSD, 1 worker:  12.6 s
+        SSD, 2 workers: 11.6 s
+        SSD, 4 workers: 8.9 s
+        SSD, 8 workers: 16.9 s
+
+    We observed that caches halted for periods ~5-10 s when too many workers 
+    were used.
+    """
+    if N_workers <= 0:
+        raise ValueError("N_workers must be greater than 0")
+    if _asyncExecutor._max_workers == N_workers:
+        return
+    _asyncExecutor._max_workers = N_workers
+    _asyncExecutor._adjust_thread_count()
+
+def defaultHeader():
     """
     Returns a default MRC header dictionary with all fields with default values.
     """
     header = {}
-    header['fileConvention'] = "imod"
+    header['fileConvention'] = "CCPEM"
     header['endian'] = 'le'
     header['MRCtype'] = 0
     header['dimensions'] = np.array( [0,0,0], dtype=int )
@@ -83,13 +121,8 @@ def defaultHeader( ):
     
     
 
-#def MRCImport( MRCfilename, useMemmap = False, endian='le', 
-#              pixelunits=u'nm', fileConvention = "imod", 
-#              n_threads = None ):
-    
-    
 def readMRC( MRCfilename, useMemmap = False, endian='le', 
-              pixelunits=u'\AA', fileConvention = "imod", 
+              pixelunits=u'\AA', fileConvention = "CCPEM", 
               n_threads = None, idx = None ):
     """
     readMRC
@@ -101,17 +134,17 @@ def readMRC( MRCfilename, useMemmap = False, endian='le',
     
     Usage:
         
-    [data, header] = readMRC( "my_filename.mrcz", seMemmap = False, endian='le', 
-              pixelunits=u'\AA', fileConvention = "imod", n_threads = None )
+    [image, meta] = readMRC( "my_filename.mrcz", seMemmap = False, endian='le', 
+              pixelunits=u'\AA', fileConvention = "CCPEM", n_threads = None )
     
-    * data is a NumPy array.
+    * image is a NumPy array.
         
-    * header is a dict with various fields relating to the MRC header information.
+    * meta is a dict with various fields relating to the MRC header information and extended metadata.
     
     * pixelunits can be '\AA' (Angstoms), 'nm', '\mum', or 'pm'.  Internally pixel 
       sizes are always encoded in Angstroms in the MRC file.
         
-    * fileConvention can be 'imod' (equivalent to CCP4) or 'eman2', which is
+    * fileConvention can be 'CCPEM' (equivalent to IMOD) or 'eman2', which is
       only partially supported at present.
     
     * endian can be big-endian as 'be' or little-endian as 'le'
@@ -120,7 +153,6 @@ def readMRC( MRCfilename, useMemmap = False, endian='le',
        all virtual cores.
 
     * idx = (first, last) is a tuple with first (inclusive) and last (not inclusive) indices of images to be read from the stack. Index of first image is 0. Negative indices can be used to count backwards. A singleton integer can be provided to read only one image. If omitted, will read whole file. Compression is currently not supported with this option.
-
 
     """
 
@@ -217,7 +249,7 @@ def readMRC( MRCfilename, useMemmap = False, endian='le',
         return image, header
 
        
-def __MRCZImport( f, header, endian='le', fileConvention = "imod", returnHeader = False, n_threads=None ):
+def __MRCZImport( f, header, endian='le', fileConvention = "CCPEM", returnHeader = False, n_threads=None ):
     """
     Equivalent to MRCImport, but for compressed data using the blosc library.
     
@@ -291,7 +323,7 @@ def readBloscHeader( filehandle ):
     return ( [nbytes, blocksize, ctbytes], [version, versionlz, flags, typesize] )
     
     
-def readMRCHeader( MRCfilename, endian='le', fileConvention = "imod", pixelunits=u'\AA' ):
+def readMRCHeader( MRCfilename, endian='le', fileConvention = "CCPEM", pixelunits=u'\AA' ):
     """
     Reads in the first 1024 bytes from an MRC file and parses it into a Python dictionary, yielding 
     header information.
@@ -324,9 +356,9 @@ def readMRCHeader( MRCfilename, endian='le', fileConvention = "imod", pixelunits
         print( "compressor: %s, MRCtype: %s" % (str(header['compressor']),str(header['MRCtype'])) )
         
         fileConvention = fileConvention.lower()
-        if fileConvention == "imod":
+        if fileConvention == "CCPEM":
             diagStr += ("ioMRC.readMRCHeader: MRCtype: %s, compressor: %s, dimensions %s" % 
-                (IMOD_ENUM[header['MRCtype']],header['compressor'], header['dimensions'] ) )
+                (CCPEM_ENUM[header['MRCtype']],header['compressor'], header['dimensions'] ) )
         elif fileConvention == "eman2":
             diagStr += ( "ioMRC.readMRCHeader: MRCtype: %s, compressor: %s, dimensions %s" % 
                 (EMAN2_ENUM[header['MRCtype']],header['compressor'], header['dimensions'] ) )
@@ -338,11 +370,11 @@ def readMRCHeader( MRCfilename, endian='le', fileConvention = "imod", pixelunits
             except:
                 raise ValueError( "Error: unrecognized EMAN2-MRC data type = " + str(header['MRCtype']) )
                 
-        elif fileConvention == "imod": # Default is imod
+        elif fileConvention == "CCPEM": # Default is CCPEM
             try:
-                header['dtype'] = IMOD_ENUM[ header['MRCtype'] ]
+                header['dtype'] = CCPEM_ENUM[ header['MRCtype'] ]
             except:
-                raise ValueError( "Error: unrecognized IMOD-MRC data type = " + str(header['MRCtype']) )
+                raise ValueError( "Error: unrecognized CCPEM-MRC data type = " + str(header['MRCtype']) )
                 
         # Apply endian-ness to NumPy dtype
         header['dtype'] = endchar + header['dtype']
@@ -439,7 +471,7 @@ def writeMRC( input_image, MRCfilename, endian='le', dtype=None,
 
         idx can be used to write an image or set of images starting at a specific position in the MRC file (which may already exist). Index of first image is 0. A negative index can be used to count backwards. If omitted, will write whole stack to file. If writing to an existing file, compression or extended MRC2014 headers are currently not supported with this option.
     
-    Note that MRC definitions are not consistent.  Generally we support the IMOD schema.
+    Note that MRC definitions are not consistent.  Generally we support the CCPEM schema.
     """
 
     if len( input_image.shape ) == 2:
@@ -482,7 +514,7 @@ def writeMRC( input_image, MRCfilename, endian='le', dtype=None,
             header['dtype'] = dtype
             
         # Now we need to filter dtype to make sure it's actually acceptable to MRC
-        if not header['dtype'].strip( "<>|" ) in REVERSE_IMOD_ENUM:
+        if not header['dtype'].strip( "<>|" ) in REVERSE_CCPEM_ENUM:
             raise TypeError( "ioMRC.MRCExport: Unsupported dtype cast for MRC %s" % header['dtype'] )
             
         header['dimensions'] = input_image.shape
@@ -530,10 +562,10 @@ def writeMRC( input_image, MRCfilename, endian='le', dtype=None,
     else:
     # We are going to append to an already existing file:
 
-        # So we try to figure out its header with 'imod' or 'eman2' file conventions:
+        # So we try to figure out its header with 'CCPEM' or 'eman2' file conventions:
         try:
 
-            header = readMRCHeader( MRCfilename, endian, fileConvention = 'imod', pixelunits=pixelunits )
+            header = readMRCHeader( MRCfilename, endian, fileConvention = 'CCPEM', pixelunits=pixelunits )
 
         except ValueError:
 
@@ -542,7 +574,7 @@ def writeMRC( input_image, MRCfilename, endian='le', dtype=None,
                 header = readMRCHeader( MRCfilename, endian, fileConvention = 'eman2', pixelunits=pixelunits )
 
             except ValueError:
-            # If neither 'imod' nor 'eman2' formats satisfy:
+            # If neither 'CCPEM' nor 'eman2' formats satisfy:
 
                 raise ValueError( "Error: unrecognized MRC type for file: %s " % MRCfilename )
 
@@ -683,7 +715,7 @@ def writeMRCHeader( f, header, endchar = '<' ):
     called `header` to parse the appropriate fields. Use defaultHeader to see 
     all fields.
     
-    http://bio3d.colorado.edu/imod/doc/mrc_format.txt 
+    http://bio3d.colorado.edu/CCPEM/doc/mrc_format.txt 
     """
         
     f.seek(0)
@@ -700,7 +732,7 @@ def writeMRCHeader( f, header, endchar = '<' ):
     # 64-bit floats are automatically down-cast
     dtype = header['dtype'].lower().strip( '<>|' )
     try:
-        MRCmode = np.int64( REVERSE_IMOD_ENUM[dtype] ).astype( endchar + "i4" )
+        MRCmode = np.int64( REVERSE_CCPEM_ENUM[dtype] ).astype( endchar + "i4" )
     except:
         raise ValueError( "Warning: Unknown dtype for MRC encountered = " + str(dtype) )
         
@@ -797,16 +829,44 @@ def writeMRCHeader( f, header, endchar = '<' ):
 
     return  
 
-def bg_writeMRC( *args, **kwargs ):
+def asyncReadMRC( *args, **kwargs ):
     """
-    bg_writeMRC( input_image, MRCfilename, endian='le', shape=None, compressor=None, clevel = 1 )
+    asyncReadMRC( *args, **kwargs )
+    @author: Robert A. McLeod
+
+    Returns a `Future` object, call the method `result()` to get the image 
+    and metadata.
+
+    E.g. 
+    worker = asyncReadMRC( 'someones_file.mrc' )
+    # Do some work
+    mrcImage, mrcMeta = worker.result()
+
+    Valid arguments are as for readMRC().
+    """
+    return _asyncExecutor.submit( readMRC, *args, **kwargs )
+
+def asyncWriteMRC( *args, **kwargs ):
+    """
+    asyncWriteMRC( *args, **kwargs )
     @author: Robert A. McLeod
 
     Calls writeMRC in a seperate thread and executes it in the background. Returns the thread 
-    object, so if necessary you can call `thread.join()` to wait for the write to finish.
+    object, so if necessary you can call `Future.result()` to wait for the write to finish, 
+    or check with `Future.done()`.abs
+
+        worker = asyncWriteMRC( npImageData, 'my_mrcfile.mrc' )
+        # Do some work
+        if not worker.done():
+            time.sleep(0.001)
+        # File is written to disk
+
+    Most of the time you can ignore the return and let the system finish writing 
+    when it finishes.  
  
     Valid arguments are as for writeMRC().
     """
-    bgThread = threading.Thread( target=writeMRC, args=args, kwargs=kwargs )
-    bgThread.start()
-    return bgThread
+    #bgThread = threading.Thread( target=writeMRC, args=args, kwargs=kwargs )
+    #bgThread.start()
+    #return bgThread
+    return _asyncExecutor.submit( writeMRC, *args, **kwargs )
