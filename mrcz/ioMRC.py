@@ -94,7 +94,7 @@ def defaultHeader():
     Returns a default MRC header dictionary with all fields with default values.
     """
     header = {}
-    header['fileConvention'] = "CCPEM"
+    header['fileConvention'] = "ccpem"
     header['endian'] = 'le'
     header['MRCtype'] = 0
     header['dimensions'] = np.array( [0,0,0], dtype=int )
@@ -122,7 +122,7 @@ def defaultHeader():
     
 
 def readMRC( MRCfilename, useMemmap = False, endian='le', 
-              pixelunits=u'\AA', fileConvention = "CCPEM", 
+              pixelunits=u'\AA', fileConvention = "ccpem", 
               n_threads = None, idx = None ):
     """
     readMRC
@@ -135,7 +135,7 @@ def readMRC( MRCfilename, useMemmap = False, endian='le',
     Usage:
         
     [image, meta] = readMRC( "my_filename.mrcz", seMemmap = False, endian='le', 
-              pixelunits=u'\AA', fileConvention = "CCPEM", n_threads = None )
+              pixelunits=u'\AA', fileConvention = "ccpem", n_threads = None )
     
     * image is a NumPy array.
         
@@ -144,7 +144,7 @@ def readMRC( MRCfilename, useMemmap = False, endian='le',
     * pixelunits can be '\AA' (Angstoms), 'nm', '\mum', or 'pm'.  Internally pixel 
       sizes are always encoded in Angstroms in the MRC file.
         
-    * fileConvention can be 'CCPEM' (equivalent to IMOD) or 'eman2', which is
+    * fileConvention can be 'ccpem' (equivalent to IMOD) or 'eman2', which is
       only partially supported at present.
     
     * endian can be big-endian as 'be' or little-endian as 'le'
@@ -249,7 +249,7 @@ def readMRC( MRCfilename, useMemmap = False, endian='le',
         return image, header
 
        
-def __MRCZImport( f, header, endian='le', fileConvention = "CCPEM", returnHeader = False, n_threads=None ):
+def __MRCZImport( f, header, endian='le', fileConvention = "ccpem", returnHeader = False, n_threads=None ):
     """
     Equivalent to MRCImport, but for compressed data using the blosc library.
     
@@ -323,7 +323,7 @@ def readBloscHeader( filehandle ):
     return ( [nbytes, blocksize, ctbytes], [version, versionlz, flags, typesize] )
     
     
-def readMRCHeader( MRCfilename, endian='le', fileConvention = "CCPEM", pixelunits=u'\AA' ):
+def readMRCHeader( MRCfilename, endian='le', fileConvention = "ccpem", pixelunits=u'\AA' ):
     """
     Reads in the first 1024 bytes from an MRC file and parses it into a Python dictionary, yielding 
     header information.
@@ -356,7 +356,7 @@ def readMRCHeader( MRCfilename, endian='le', fileConvention = "CCPEM", pixelunit
         print( "compressor: %s, MRCtype: %s" % (str(header['compressor']),str(header['MRCtype'])) )
         
         fileConvention = fileConvention.lower()
-        if fileConvention == "CCPEM":
+        if fileConvention == "ccpem":
             diagStr += ("ioMRC.readMRCHeader: MRCtype: %s, compressor: %s, dimensions %s" % 
                 (CCPEM_ENUM[header['MRCtype']],header['compressor'], header['dimensions'] ) )
         elif fileConvention == "eman2":
@@ -370,11 +370,13 @@ def readMRCHeader( MRCfilename, endian='le', fileConvention = "CCPEM", pixelunit
             except:
                 raise ValueError( "Error: unrecognized EMAN2-MRC data type = " + str(header['MRCtype']) )
                 
-        elif fileConvention == "CCPEM": # Default is CCPEM
+        elif fileConvention == "ccpem": # Default is CCPEM
             try:
                 header['dtype'] = CCPEM_ENUM[ header['MRCtype'] ]
             except:
                 raise ValueError( "Error: unrecognized CCPEM-MRC data type = " + str(header['MRCtype']) )
+        else:
+            raise ValueError( "Error: unrecognized MRC file convention: {}".format(fileConvention) )
                 
         # Apply endian-ness to NumPy dtype
         header['dtype'] = endchar + header['dtype']
