@@ -22,26 +22,31 @@ Tested output on: Gatan GMS, IMOD, Chimera, Relion, MotionCorr, UnBlur
 import os, os.path
 import numpy as np
 import threading
+import struct
 from concurrent.futures import ThreadPoolExecutor
+import logging
+logger = logging.getLogger('MRCZ')
 try: 
     import blosc
-    # Block size is set at compile time to fit into L1 cache
     bloscPresent = True
-    # For background operations we want to release the GIL in blosc operations and 
+    # For async operations we want to release the GIL in blosc operations and 
     # file IO operations.
     blosc.set_releasegil(True)
 except:
     bloscPresent = False
-    print( "`blosc` meta-compression library not found, file compression disabled." )
+    logger.info( "`blosc` meta-compression library not found, file compression disabled." )
 try: 
     import rapidjson as json
 except ImportError:
     import json
-    print( "`python-rapidjson` not found, using builtin `json` instead." )
+    logger.info( "`python-rapidjson` not found, using builtin `json` instead." )
 
 # Buffer for file I?O
 # Quite arbitrary, in bytes (hand-optimized)
 BUFFERSIZE = 2**20
+BLOSC_BLOCK = 2**16
+
+DEFAULT_HEADER_LEN = 1024
 
 # ENUM dicts for our various Python to MRC constant conversions
 COMPRESSOR_ENUM = { 0:None, 1:'blosclz', 2:'lz4', 3:'lz4hc', 4:'snappy', 5:'zlib', 6:'zstd' }
@@ -121,9 +126,9 @@ def defaultHeader():
     
     
 
-def readMRC( MRCfilename, useMemmap = False, endian='le', 
+def readMRC( MRCfilename, idx=None, endian='le', 
               pixelunits=u'\AA', fileConvention = "ccpem", 
-              n_threads = None, idx = None ):
+              useMemmap=False, n_threads = None  ):
     """
     readMRC
     
@@ -134,12 +139,20 @@ def readMRC( MRCfilename, useMemmap = False, endian='le',
     
     Usage:
         
-    [image, meta] = readMRC( "my_filename.mrcz", seMemmap = False, endian='le', 
-              pixelunits=u'\AA', fileConvention = "ccpem", n_threads = None )
+    [image, meta] = readMRC( MRCfilename, idx=None, endian='le', 
+              pixelunits=u'\AA', fileConvention = "ccpem", 
+              useMemmap=False, n_threads = None  ):
     
     * image is a NumPy array.
         
-    * meta is a dict with various fields relating to the MRC header information and extended metadata.
+    * meta is a dict with various fields relating to the MRC header information 
+      and extended metadata.
+
+    * idx = (first, last) is a tuple with first (inclusive) and last (not 
+      inclusive) indices of images to be read from the stack. Index of first image 
+      is 0. Negative indices can be used to count backwards. A singleton integer 
+      can be provided to read only one image. If omitted, will read whole file. 
+      Compression is currently not supported with this option.
     
     * pixelunits can be '\AA' (Angstoms), 'nm', '\mum', or 'pm'.  Internally pixel 
       sizes are always encoded in Angstroms in the MRC file.
@@ -150,9 +163,9 @@ def readMRC( MRCfilename, useMemmap = False, endian='le',
     * endian can be big-endian as 'be' or little-endian as 'le'
         
     * n_threads is the number of threads to use for decompression, defaults to 
-       all virtual cores.
+       use all virtual cores.
 
-    * idx = (first, last) is a tuple with first (inclusive) and last (not inclusive) indices of images to be read from the stack. Index of first image is 0. Negative indices can be used to count backwards. A singleton integer can be provided to read only one image. If omitted, will read whole file. Compression is currently not supported with this option.
+    * useMemmap=True returns a `numpy.memmap` instead of a `numpy.ndarray`
 
     """
 
@@ -175,15 +188,10 @@ def readMRC( MRCfilename, useMemmap = False, endian='le',
         # TO DO: add support to read all images within a range at once
 
             if header['compressor'] != None:
-
                 raise RuntimeError( "Reading from arbitrary positions not supported for compressed files. Compressor = %s" % header['compressor'] )
-
             if np.isscalar( idx ):
-
                 indices = np.array( [idx, idx], dtype='int' )
-
             else:
-
                 indices = np.array( idx, dtype='int' )
 
             # Convert to old way:
@@ -191,25 +199,17 @@ def readMRC( MRCfilename, useMemmap = False, endian='le',
             n = indices[1] - indices[0] + 1
 
             if idx < 0:
-
                 # Convert negative index to equivalent positive index:
                 idx = header['dimensions'][0] + idx
 
             # Just check if the desired image is within the stack range:
             if idx < 0 or idx >= header['dimensions'][0]:
-
                 raise ValueError( "Error: image or slice index out of range. idx = %d, z_dimension = %d" % (idx, header['dimensions'][0]) )
-
             elif idx + n > header['dimensions'][0]:
-
             	raise ValueError( "Error: image or slice index out of range. idx + n = %d, z_dimension = %d" % (idx + n, header['dimensions'][0]) )
-
             elif n < 1:
-
             	raise ValueError( "Error: n must be >= 1. n = %d" % n )
-
             else:
-
                 # We adjust the dimensions of the returned image in the header:
                 header['dimensions'][0] = n
 
@@ -217,10 +217,9 @@ def readMRC( MRCfilename, useMemmap = False, endian='le',
                 offset = idx * np.product( header['dimensions'][1:] ) * np.dtype( header['dtype'] ).itemsize
 
         else:
-
             offset = 0
 
-        f.seek(1024 + header['extendedBytes'] + offset)
+        f.seek(DEFAULT_HEADER_LEN + header['extendedBytes'] + offset)
         if bool(useMemmap):
             image = np.memmap( f, dtype=header['dtype'], 
                               mode='c', 
@@ -229,7 +228,7 @@ def readMRC( MRCfilename, useMemmap = False, endian='le',
             image = np.fromfile( f, dtype=header['dtype'], 
                                 count=np.product( header['dimensions'] ) )
                                 
-        # print( "DEBUG 1: ioMRC.MRCImport # nans: %d" % np.sum(np.isnan(image)) )    
+
         if header['MRCtype'] == 101:
             # Seems the 4-bit is interlaced ...
             interlaced_image = image
@@ -243,9 +242,7 @@ def readMRC( MRCfilename, useMemmap = False, endian='le',
             image[0::2] = np.left_shift(interlaced_image,4) / 15
             image[1::2] = np.right_shift(interlaced_image,4)
 
-        # print( "DEBUG 2: ioMRC.MRCImport # nans: %d" % np.sum(np.isnan(image)) )
         image = np.squeeze( np.reshape( image, header['dimensions'] ) )
-        # print( "DEBUG 3: ioMRC.MRCImport # nans: %d" % np.sum(np.isnan(image)) )
         return image, header
 
        
@@ -259,11 +256,9 @@ def __MRCZImport( f, header, endian='le', fileConvention = "ccpem", returnHeader
         'lz4' 
     
     Memory mapping is not possible in this case at present.  
-    
-
     """
     if not bloscPresent:
-        print( "ioMRC: blosc not present, cannot compress files." )
+        logger.error( "blosc not present, cannot compress files." )
         return
         
     if n_threads == None:
@@ -273,9 +268,7 @@ def __MRCZImport( f, header, endian='le', fileConvention = "ccpem", returnHeader
         
     image = np.empty( header['dimensions'], dtype=header['dtype'] )
     
-    # We can read MRC2014 files that don't start at 1024 bytes, but not write them 
-    # (as they are non-standard and we don't like breaking stuff)
-    blosc_chunk_pos = 1024 + header['extendedBytes']
+    blosc_chunk_pos = DEFAULT_HEADER_LEN + header['extendedBytes']
     for J in np.arange(image.shape[0]):
         f.seek( blosc_chunk_pos )
         ( (nbytes, blockSize, ctbytes ), (ver_info) ) = readBloscHeader(f)
@@ -335,7 +328,7 @@ def readMRCHeader( MRCfilename, endian='le', fileConvention = "ccpem", pixelunit
         
     header = {}
     with open( MRCfilename, 'rb' ) as f:
-        diagStr = ""
+        # diagStr = ""
         # Get dimensions, in format [nz, ny, nx] (stored as [nx,ny,nz] in the file)
         header['dimensions'] = np.flipud( np.fromfile( f, dtype=endchar+'i4', count=3 ) )
     
@@ -353,15 +346,15 @@ def readMRCHeader( MRCfilename, endian='le', fileConvention = "ccpem", pixelunit
         # Extract compressor from dtype > MRC_COMP_RATIO
         header['compressor'] = COMPRESSOR_ENUM[ np.floor_divide(header['MRCtype'], MRC_COMP_RATIO) ]
         header['MRCtype'] = np.mod( header['MRCtype'], MRC_COMP_RATIO )
-        print( "compressor: %s, MRCtype: %s" % (str(header['compressor']),str(header['MRCtype'])) )
+        logger.info( "compressor: %s, MRCtype: %s" % (str(header['compressor']),str(header['MRCtype'])) )
         
         fileConvention = fileConvention.lower()
-        if fileConvention == "ccpem":
-            diagStr += ("ioMRC.readMRCHeader: MRCtype: %s, compressor: %s, dimensions %s" % 
-                (CCPEM_ENUM[header['MRCtype']],header['compressor'], header['dimensions'] ) )
-        elif fileConvention == "eman2":
-            diagStr += ( "ioMRC.readMRCHeader: MRCtype: %s, compressor: %s, dimensions %s" % 
-                (EMAN2_ENUM[header['MRCtype']],header['compressor'], header['dimensions'] ) )
+        # if fileConvention == "ccpem":
+        #     diagStr += ("ioMRC.readMRCHeader: MRCtype: %s, compressor: %s, dimensions %s" % 
+        #         (CCPEM_ENUM[header['MRCtype']],header['compressor'], header['dimensions'] ) )
+        # elif fileConvention == "eman2":
+        #     diagStr += ( "ioMRC.readMRCHeader: MRCtype: %s, compressor: %s, dimensions %s" % 
+        #         (EMAN2_ENUM[header['MRCtype']],header['compressor'], header['dimensions'] ) )
 
         
         if fileConvention == "eman2":
@@ -399,8 +392,8 @@ def readMRCHeader( MRCfilename, endian='le', fileConvention = "ccpem", pixelunit
             header['pixelsize'] *= 0.1
             
         # Read in [X,Y,Z] array ordering
-        f.seek(64)
         # Currently I don't use this
+        # f.seek(64)
         # axesTranpose = np.fromfile( f, dtype=endchar + 'i4', count=3 ) - 1
         
         # Read in statistics
@@ -410,7 +403,13 @@ def readMRCHeader( MRCfilename, endian='le', fileConvention = "ccpem", pixelunit
         f.seek(92)
         header['extendedBytes'] = int( np.fromfile( f, dtype=endchar + 'i4', count=1) )
         if header['extendedBytes'] > 0:
-            diagStr += ", extended header %d" % header['extendedBytes']
+            # diagStr += ", extended header %d" % header['extendedBytes']
+
+            f.seek(104)
+            header['metaId'] = f.read(4)
+            if header['metaId'] == b'json':
+                f.seek(DEFAULT_HEADER_LEN)
+                header.update( json.loads( f.read(header['extendedBytes'] ) ) )
 
         # Read in kV, C3, and gain
         f.seek(132)
@@ -418,28 +417,39 @@ def readMRCHeader( MRCfilename, endian='le', fileConvention = "ccpem", pixelunit
         header['C3']  = np.fromfile( f, dtype=endchar + 'f4', count=1 )
         header['gain']  = np.fromfile( f, dtype=endchar + 'f4', count=1 )
         
-        diagStr += ", voltage: %.1f, C3: %.2f, gain: %.2f" % (header['voltage'], header['C3'], header['gain']) 
+        #diagStr += ", voltage: %.1f, C3: %.2f, gain: %.2f" % (header['voltage'], header['C3'], header['gain']) 
 
         # Read in size of packed data
         f.seek(144)
         # Have to convert to Python int to avoid index warning.
-        header['packedBytes'] = int( np.fromfile( f, dtype=endchar + 'i8', count=1) )
-        if header['packedBytes'] > 0:
-            diagStr += ", packedBytes: %d" % header['packedBytes']
+        header['packedBytes'] = struct.unpack( 'q', f.read(8) )
+        # header['packedBytes'] = int( np.fromfile( f, dtype=endchar + 'i8', count=1) )
+        # if header['packedBytes'] > 0:
+        #     diagStr += ", packedBytes: %d" % header['packedBytes']
         
+        
+
         # How many bytes in an MRC
         return header
         
-def writeMRC( input_image, MRCfilename, endian='le', dtype=None, 
+def writeMRC( input_image, MRCfilename, meta=None, endian='le', dtype=None, 
                pixelsize=[0.1,0.1,0.1], pixelunits=u"\AA", shape=None, 
-               voltage = 0.0, C3 = 0.0, gain = 1.0,
+               voltage=0.0, C3=0.0, gain=1.0,
                compressor=None, clevel = 1, n_threads=None, quickStats=True, idx = None ):
     """
-    writeMRC( input_image, MRCfilename, endian='le', shape=None, compressor=None, clevel = 1 )
+   writeMRC( input_image, MRCfilename, meta=None, idx=None, 
+               endian='le', dtype=None, 
+               pixelsize=[0.1,0.1,0.1], pixelunits=u"\AA", shape=None, 
+               voltage=0.0, C3=0.0, gain=1.0,
+               compressor=None, clevel=1, n_threads=None, quickStats=True, 
+               )
     Created on Thu Apr 02 15:56:34 2015
     @author: Robert A. McLeod
     
     Given a numpy 2-D or 3-D array `input_image` write it has an MRC file `MRCfilename`.
+
+        meta is a Python dict{} which will be serialized by JSON and written 
+        into the extended header.
     
         dtype will cast the data before writing it.
         
@@ -449,8 +459,9 @@ def writeMRC( input_image, MRCfilename, endian='le', dtype=None,
         or "nm" for nanometers.  MRC standard is always Angstroms, so pixelsize 
         is converted internally from nm to Angstroms if necessary
         
-        shape is only used if you want to later append to the file, such as merging together Relion particles
-        for Frealign.  Not recommended and only present for legicacy reasons.
+        shape is only used if you want to later append to the file, such as 
+        merging together Relion particles for Frealign.  Not recommended and 
+        only present for legicacy reasons.
         
         voltage is accelerating potential in keV, defaults to 300.0
         
@@ -471,7 +482,12 @@ def writeMRC( input_image, MRCfilename, endian='le', dtype=None,
         quickStats = True estimates the image mean, min, max from the first frame only,
         which saves a lot of computational time for stacks.
 
-        idx can be used to write an image or set of images starting at a specific position in the MRC file (which may already exist). Index of first image is 0. A negative index can be used to count backwards. If omitted, will write whole stack to file. If writing to an existing file, compression or extended MRC2014 headers are currently not supported with this option.
+        idx can be used to write an image or set of images starting at a 
+        specific position in the MRC file (which may already exist). Index of 
+        first image is 0. A negative index can be used to count backwards. If 
+        omitted, will write whole stack to file. If writing to an existing 
+        file, compression or extended MRC2014 headers are currently not 
+        supported with this option.
     
     Note that MRC definitions are not consistent.  Generally we support the CCPEM schema.
     """
@@ -487,28 +503,23 @@ def writeMRC( input_image, MRCfilename, endian='le', dtype=None,
     else:
         endchar = '>'
 
-    # We now check if we have to create a new header (i.e. new file) or not. If the file exists, but idx is 'None', it will be replaced by a new file with new header anyway:
+    # We now check if we have to create a new header (i.e. new file) or not. If 
+    # the file exists, but idx is 'None', it will be replaced by a new file 
+    # with new header anyway:
     if os.path.isfile( MRCfilename ):
-
         if idx == None:
-
             idxnewfile = True
-
         else:
-
             idxnewfile = False
-
     else:
-
         idxnewfile = True
 
+    
     if idxnewfile:
-
         if dtype == 'uint4' and compressor != None:
             raise TypeError( "uint4 packing is not compatible with compression, use int8 datatype." )
             
-        header = {}
-
+        header = {'meta': meta }
         if dtype == None:
             # TODO: endian support
             header['dtype'] = endchar + input_image.dtype.descr[0][1].strip( "<>|" )
@@ -566,54 +577,42 @@ def writeMRC( input_image, MRCfilename, endian='le', dtype=None,
 
         # So we try to figure out its header with 'CCPEM' or 'eman2' file conventions:
         try:
-
             header = readMRCHeader( MRCfilename, endian, fileConvention = 'CCPEM', pixelunits=pixelunits )
 
         except ValueError:
-
             try:
-
                 header = readMRCHeader( MRCfilename, endian, fileConvention = 'eman2', pixelunits=pixelunits )
-
             except ValueError:
             # If neither 'CCPEM' nor 'eman2' formats satisfy:
-
                 raise ValueError( "Error: unrecognized MRC type for file: %s " % MRCfilename )
 
         # No support for extended headers in arbitrary appending mode:
-        if header['extendedBytes'] > 0:
-
-            raise ValueError( "Error: MRC2014 files with extended headers not supported for writing: %s = %d" % ('extendedBytes', header['extendedBytes'] ) )
+        # RAM: should work now
+        # if header['extendedBytes'] > 0:
+        #     raise ValueError( "Error: MRC2014 files with extended headers not supported for writing: %s = %d" % ('extendedBytes', header['extendedBytes'] ) )
 
         # If the file already exists, its X,Y dimensions must be consistent with the current image to be written:
         if np.any( header['dimensions'][1:] != input_image.shape[1:] ):
-
             raise ValueError( "Error: x,y dimensions of image do not match that of MRC file: %s " % MRCfilename )
             # TO DO: check also consistency of dtype?
 
     # Now that we have a proper header, we go into the details of writing to a specific position:
     if idx != None:
-
         if header['compressor'] != None:
-
             raise RuntimeError( "Writing at arbitrary positions not supported for compressed files. Compressor = %s" % header['compressor'] )
 
         idx = int(idx)
-
         # Force 2D to 3D dimensions:
         if len( header['dimensions'] ) == 2:
-
             header['dimensions'] = np.array( [1, header['dimensions'][0], header['dimensions'][1]] )
 
         # Convert negative index to equivalent positive index:
         if idx < 0:
-
             idx = header['dimensions'][0] + idx
 
         # Just check if the desired image is within the stack range:
         # In principle we could write to a position beyond the limits of the file (missing slots would be filled with zeros), but let's avoid that the user writes a big file with zeros by mistake. So only positions within or immediately consecutive to the stack are allowed:
         if idx < 0 or idx > header['dimensions'][0]:
-
             raise ValueError( "Error: image or slice index out of range. idx = %d, z_dimension = %d" % (idx, header['dimensions'][0]) )
 
         # The new Z dimension may be larger than that of the existing file, or even of the new file, if an index larger than the current stack is specified:
@@ -625,7 +624,6 @@ def writeMRC( input_image, MRCfilename, endian='le', dtype=None,
         offset = idx * np.product( header['dimensions'][1:] ) * np.dtype( header['dtype'] ).itemsize
 
     else:
-
         offset = 0
         
     __MRCExport( input_image, header, MRCfilename, endchar, offset, idxnewfile )
@@ -638,7 +636,6 @@ def __MRCExport( input_image, header, MRCfilename, endchar = '<', offset = 0, id
     """
 
     if idxnewfile:
-
         # If forcing a new file we truncate it even if it already exists:
         fmode = 'wb'
 
@@ -647,15 +644,14 @@ def __MRCExport( input_image, header, MRCfilename, endchar = '<', offset = 0, id
         fmode = 'rb+'
 
     with open( MRCfilename, fmode, buffering=BUFFERSIZE ) as f:
-    
-        writeMRCHeader( f, header, endchar )
-        f.seek(1024 + offset)
+        extendedBytes = writeMRCHeader( f, header, endchar )
+        f.seek(DEFAULT_HEADER_LEN + extendedBytes + offset)
         
         if ('compressor' in header) \
                 and (header['compressor'] in REVERSE_COMPRESSOR_ENUM) \
                 and (REVERSE_COMPRESSOR_ENUM[header['compressor']]) > 0:
             # compressed MRCZ
-            print( "Compressing %s with compressor %s%d" %
+            logger.info( "Compressing %s with compressor %s%d" %
                     (MRCfilename, header['compressor'], header['clevel'] ) )
             
             if header['dtype'] != 'uint4' and input_image.dtype != header['dtype']:
@@ -669,12 +665,11 @@ def __MRCExport( input_image, header, MRCfilename, endchar = '<', offset = 0, id
                 input_image = np.reshape( input_image, [1,input_image.shape[0],input_image.shape[1] ])
                 
             blosc.set_nthreads( header['n_threads'] )
-            blosc.set_blocksize( 65536 )
+            blosc.set_blocksize( BLOSC_BLOCK )
             
             header['packedBytes'] = 0
             typeSize = input_image.dtype.itemsize
             
-            print( input_image.shape )
             for J in np.arange( input_image.shape[0] ):
                 # print( "Slice %d: Compressing address at: %d of %d:" % (J, int(J*typeSize*blockSize), input_image.nbytes) )
                 
@@ -682,7 +677,6 @@ def __MRCExport( input_image, header, MRCfilename, endchar = '<', offset = 0, id
                 if int(J*typeSize*chunkSize) >= input_image.nbytes:
                     raise MemoryError( "MRCExport: Tried to reference past end of ndarray %d > %d" % (int(J*typeSize*chunkSize), input_image.nbytes ) )
                     
-
                 compressedData = blosc.compress( input_image[J,:,:].tobytes(),
                             typeSize, 
                             clevel=header['clevel'], 
@@ -691,9 +685,7 @@ def __MRCExport( input_image, header, MRCfilename, endchar = '<', offset = 0, id
                 f.write( compressedData )
                     
                 header['packedBytes'] += len(compressedData)
-                # print( "packedBytes = %d" % header['packedBytes'] )
                 
-            # print( "Finished writing out compressedData" )
             # Rewind and write out the total compressed size
             f.seek(144)
             np.int64( header['packedBytes'] ).astype( endchar + "i8" ).tofile(f)
@@ -702,7 +694,6 @@ def __MRCExport( input_image, header, MRCfilename, endchar = '<', offset = 0, id
         else: # vanilla MRC
             if header['dtype'] != 'uint4' and input_image.dtype != header['dtype']:
                 input_image = input_image.astype( header['dtype'] )
-            
             input_image.tofile(f)
             
             
@@ -713,7 +704,7 @@ def writeMRCHeader( f, header, endchar = '<' ):
     Usage:
         writeMRCHeader( f, header )
         
-    Writes a 1024-byte header to the file-like object `f`, requires a dict 
+    Writes a  header to the file-like object `f`, requires a dict 
     called `header` to parse the appropriate fields. Use defaultHeader to see 
     all fields.
     
@@ -734,7 +725,7 @@ def writeMRCHeader( f, header, endchar = '<' ):
     # 64-bit floats are automatically down-cast
     dtype = header['dtype'].lower().strip( '<>|' )
     try:
-        MRCmode = np.int64( REVERSE_CCPEM_ENUM[dtype] ).astype( endchar + "i4" )
+        MRCmode = np.int32( REVERSE_CCPEM_ENUM[dtype] ).astype( endchar + "i4" )
     except:
         raise ValueError( "Warning: Unknown dtype for MRC encountered = " + str(dtype) )
         
@@ -748,7 +739,7 @@ def writeMRCHeader( f, header, endchar = '<' ):
         # How many bytes in an MRCZ file, so that the file can be appended-to.
         try:
             f.seek(144)
-            np.int64( header['packedBytes'] ).astype( endchar + "i8" ).tofile(f)
+            np.int32( header['packedBytes'] ).astype( endchar + "i8" ).tofile(f)
         except:
             # This is written afterward so we don't try to keep the entire compressed file in RAM
             pass
@@ -817,19 +808,40 @@ def writeMRCHeader( f, header, endchar = '<' ):
         np.float32( header['gain'] ).astype(endchar+"f4").tofile(f)
         
 
-    # print( "DEBUG A" )
     # Magic MAP_ indicator that tells us this is in-fact an MRC file
     f.seek( 208 )
-    np.array( b"MAP ", dtype="|S" ).tofile(f)
-    # Write a machine stamp, '\x17\x17' for big-endian or '\x68\x65
+    f.write( b"MAP " )
+    # Write a machine stamp, '17,17' for big-endian or '68,65'
+    # Note that the MRC format doesn't indicate the endianness of the endian 
+    # identifier............................................................
     f.seek( 212 )
     if endchar == '<':
-        np.array( [68,65], dtype="uint8" ).tofile(f)
+        f.write( struct.pack( 'BB', 68, 65 ) )
+        # np.array( [68,65], dtype="uint8" ).tofile(f)
     else:
-        np.array( [17,17], dtype="uint8" ).tofile(f)
+        f.write( struct.pack( 'BB', 17, 17 ) )
+        #np.array( [17,17], dtype="uint8" ).tofile(f)
     
+    # Extended header, if meta is not None
+    if isinstance(header['meta'], dict):
+        # Encode metadata as bytes with UTF-8
+        jsonMeta = json.dumps( header['meta'] ).encode('utf-8')
+        jsonLen = len(jsonMeta)
+        # Length of extended header
+        f.seek(92)
+        f.write( struct.pack( endchar+'i', jsonLen ) )
 
-    return  
+        # 4-byte char ID string of extended metadata type
+        f.seek(104)
+        f.write( b'json' )
+
+        # Go to the extended header
+        f.seek(DEFAULT_HEADER_LEN)
+        f.write( jsonMeta )
+        return jsonLen
+    
+    # No extended header
+    return 0
 
 def asyncReadMRC( *args, **kwargs ):
     """

@@ -26,11 +26,11 @@ OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISE
 OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
-from .ioMRC import (readMRC, writeMRC, asyncReadMRC, asyncWriteMRC, 
+from mrcz.ioMRC import (readMRC, writeMRC, asyncReadMRC, asyncWriteMRC, 
     setAsyncWorkers, _asyncExecutor )
-from .ioDM import readDM4
-from .__version__ import __version__
-from . import test_mrcz as test
+from mrcz.ioDM import readDM4
+from mrcz.__version__ import __version__
+from mrcz.test_mrcz import test
 try: from . import ReliablePy
 except: pass
 

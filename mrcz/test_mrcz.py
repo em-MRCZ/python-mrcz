@@ -71,7 +71,8 @@ class PythonMrczTests(unittest.TestCase):
                            compressor=compressor, clevel=clevel )
         
         rereadMage, rereadHeader = mrcz.readMRC( mrcName, pixelunits=u"\AA")
-        os.remove( mrcName )
+        try: os.remove( mrcName )
+        except IOError: print( "Warning: file {} left on disk".format(mrcName) )
         
         npt.assert_array_almost_equal( testMage, rereadMage )
         npt.assert_array_equal( rereadHeader['voltage'], 300.0 )
@@ -139,14 +140,74 @@ class PythonMrczTests(unittest.TestCase):
                    1j * np.random.normal( 10, size=[2,128,96]  ).astype('float32')
         self.compReadWrite( testMage5, compressor='lz4', clevel=9 )
         
-    
+    def test_JSON(self):
+        testMage = np.random.uniform( high=10, size=[3,128,64] ).astype( 'int8' )
+        meta = {'foo': 5, 'bar': 42}
+        mrcName = os.path.join( tmpDir, "testMage.mrcz" )
+                
+        pixelsize = [1.2, 5.6, 3.4]
+        
+        mrcz.writeMRC( testMage, mrcName, meta=meta,
+                                pixelsize=pixelsize, pixelunits=u"\AA",
+                                voltage=300.0, C3=2.7, gain=1.05,
+                                compressor='zstd', clevel=1, n_threads=4 )
+                                
+        rereadMage, rereadHeader = mrcz.readMRC( mrcName, pixelunits=u"\AA" )
+
+        try: os.remove( mrcName )
+        except IOError: print( "Warning: file {} left on disk".format(mrcName) )
+        
+        assert( np.all(testMage.shape == rereadMage.shape) )
+        assert( testMage.dtype == rereadMage.dtype )
+        for key in meta:
+            assert( meta[key] == rereadHeader[key] )
+
+        npt.assert_array_almost_equal( testMage, rereadMage )
+        npt.assert_array_equal( rereadHeader['voltage'], 300.0 )
+        npt.assert_array_almost_equal( rereadHeader['pixelsize'], pixelsize )
+        npt.assert_array_equal( rereadHeader['pixelunits'], u"\AA" )
+        npt.assert_array_equal( rereadHeader['C3'], 2.7 )
+        npt.assert_array_equal( rereadHeader['gain'], 1.05 )
+        pass
+
+    def test_Async(self):
+        testMage = np.random.uniform( high=10, size=[3,128,64] ).astype( 'int8' )
+        meta = {'foo': 5, 'bar': 42}
+        mrcName = os.path.join( tmpDir, "testMage.mrcz" )
+                
+        pixelsize = [1.2, 5.6, 3.4]
+        
+        worker = mrcz.asyncWriteMRC( testMage, mrcName, meta=meta,
+                                pixelsize=pixelsize, pixelunits=u"\AA",
+                                voltage=300.0, C3=2.7, gain=1.05,
+                                compressor='zstd', clevel=1, n_threads=4 )
+                                
+        worker.result() # Wait for write to finish
+
+        worker = mrcz.asyncReadMRC( mrcName, pixelunits=u"\AA" )
+        rereadMage, rereadHeader = worker.result()
+
+        try: os.remove( mrcName )
+        except IOError: print( "Warning: file {} left on disk".format(mrcName) )
+        
+        assert( np.all(testMage.shape == rereadMage.shape) )
+        assert( testMage.dtype == rereadMage.dtype )
+        for key in meta:
+            assert( meta[key] == rereadHeader[key] )
+
+        npt.assert_array_almost_equal( testMage, rereadMage )
+        npt.assert_array_equal( rereadHeader['voltage'], 300.0 )
+        npt.assert_array_almost_equal( rereadHeader['pixelsize'], pixelsize )
+        npt.assert_array_equal( rereadHeader['pixelunits'], u"\AA" )
+        npt.assert_array_equal( rereadHeader['C3'], 2.7 )
+        npt.assert_array_equal( rereadHeader['gain'], 1.05 )
+        pass
     
 cmrczProg = which( 'mrcz' )
-if cmrczProg == None:
-    pass
+if cmrczProg is None:
+    print( "NOTE: mrcz not found in system path, not testing python-mrcz to c-mrcz cross-compatibility" )
 else:
 
-    
     class PythonToCMrczTests(unittest.TestCase):
         #==============================================================================
         # python-mrcz to c-mrcz tests
@@ -245,16 +306,22 @@ else:
             self.crossReadWrite( testMage5, compressor='lz4', clevel=9 )
     pass
 
-def run():
+def test():
     from mrcz import __version__
     print( "MRCZ TESTING FOR VERSION %s " % __version__ )
-    if cmrczProg == None:
-        print( "WARNING: mrcz not found in system path, cannot test python-mrcz to c-mrcz compatibility" )
-    unittest.main( exit=False )
+    
+    theSuite = unittest.TestSuite()
+
+    theSuite.addTest(unittest.makeSuite(PythonMrczTests))
+    if cmrczProg is not None:
+        theSuite.addTest(unittest.makeSuite(PythonToCMrczTests))
+
+    unittest.TextTestRunner(verbosity=2).run(theSuite)
+    #unittest.main( exit=False )
     
 if __name__ == "__main__":
     # Should generally call "python -m unittest -v mrcz.test" for continuous integration
-    run()
+    test()
     
 
     

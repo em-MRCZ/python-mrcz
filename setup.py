@@ -38,8 +38,8 @@ tests_require = ['numpy']
 # MRCZ version
 major_ver = 0
 minor_ver = 2
-nano_ver = 1
-branch = 'a2'
+nano_ver = 2
+branch = ''
 
 VERSION = "%d.%d.%d%s" % (major_ver, minor_ver, nano_ver, branch)
 # Create the version.py file
@@ -80,7 +80,7 @@ blocked and multi-threaded way to take advantage of modern multi-core CPUs.
       author = 'Robert A. McLeod',
       author_email = 'robbmcleod@gmail.com',
       url = 'http://github.com/em-MRCZ/python-mrcz',
-      license = 'http://www.opensource.org/licenses/mit-license.php',
+      license = 'https://opensource.org/licenses/BSD-3-Clause',
       platforms = ['any'],
 
       tests_require=tests_require,
