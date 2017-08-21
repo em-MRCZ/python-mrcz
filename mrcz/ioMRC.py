@@ -409,7 +409,7 @@ def readMRCHeader( MRCfilename, endian='le', fileConvention = "ccpem", pixelunit
             header['metaId'] = f.read(4)
             if header['metaId'] == b'json':
                 f.seek(DEFAULT_HEADER_LEN)
-                header.update( json.loads( f.read(header['extendedBytes'] ) ) )
+                header.update( json.loads( f.read(header['extendedBytes'] ).decode('utf-8') ) )
 
         # Read in kV, C3, and gain
         f.seek(132)
