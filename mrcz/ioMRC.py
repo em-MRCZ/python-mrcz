@@ -114,7 +114,7 @@ def defaultHeader():
     header['meanImage'] = 0.0
     
     header['pixelsize'] = 0.1 
-    header['pixelunits'] = u"nm" # Can be "\AA" for Angstroms
+    header['pixelunits'] = u"nm" # Can be "\\AA" for Angstroms
     header['voltage'] = 300.0 # kV
     header['C3'] = 2.7 # mm
     header['gain'] = 1.0 # counts/electron
@@ -127,7 +127,7 @@ def defaultHeader():
     
 
 def readMRC( MRCfilename, idx=None, endian='le', 
-              pixelunits=u'\AA', fileConvention = "ccpem", 
+              pixelunits=u'\\AA', fileConvention = "ccpem", 
               useMemmap=False, n_threads = None  ):
     """
     readMRC
@@ -140,7 +140,7 @@ def readMRC( MRCfilename, idx=None, endian='le',
     Usage:
         
     [image, meta] = readMRC( MRCfilename, idx=None, endian='le', 
-              pixelunits=u'\AA', fileConvention = "ccpem", 
+              pixelunits=u'\\AA', fileConvention = "ccpem", 
               useMemmap=False, n_threads = None  ):
     
     * image is a NumPy array.
@@ -154,7 +154,7 @@ def readMRC( MRCfilename, idx=None, endian='le',
       can be provided to read only one image. If omitted, will read whole file. 
       Compression is currently not supported with this option.
     
-    * pixelunits can be '\AA' (Angstoms), 'nm', '\mum', or 'pm'.  Internally pixel 
+    * pixelunits can be '\\AA' (Angstoms), 'nm', '\mum', or 'pm'.  Internally pixel 
       sizes are always encoded in Angstroms in the MRC file.
         
     * fileConvention can be 'ccpem' (equivalent to IMOD) or 'eman2', which is
@@ -316,7 +316,7 @@ def readBloscHeader( filehandle ):
     return ( [nbytes, blocksize, ctbytes], [version, versionlz, flags, typesize] )
     
     
-def readMRCHeader( MRCfilename, endian='le', fileConvention = "ccpem", pixelunits=u'\AA' ):
+def readMRCHeader( MRCfilename, endian='le', fileConvention = "ccpem", pixelunits=u'\\AA' ):
     """
     Reads in the first 1024 bytes from an MRC file and parses it into a Python dictionary, yielding 
     header information.
@@ -381,8 +381,8 @@ def readMRCHeader( MRCfilename, endian='le', fileConvention = "ccpem", pixelunit
 
         header['pixelunits'] = pixelunits
             
-
-        if header['pixelunits'] == u"\AA":
+        # '\AA' will eventually be deprecated, please cease using it.
+        if header['pixelunits'] == u"\\AA" or header['pixelunits']==u"\AA":
             pass
         elif header['pixelunits'] == u"\mum":
             header['pixelsize'] *= 1E-5
@@ -433,13 +433,13 @@ def readMRCHeader( MRCfilename, endian='le', fileConvention = "ccpem", pixelunit
         return header
         
 def writeMRC( input_image, MRCfilename, meta=None, endian='le', dtype=None, 
-               pixelsize=[0.1,0.1,0.1], pixelunits=u"\AA", shape=None, 
+               pixelsize=[0.1,0.1,0.1], pixelunits=u"\\AA", shape=None, 
                voltage=0.0, C3=0.0, gain=1.0,
                compressor=None, clevel = 1, n_threads=None, quickStats=True, idx = None ):
     """
    writeMRC( input_image, MRCfilename, meta=None, idx=None, 
                endian='le', dtype=None, 
-               pixelsize=[0.1,0.1,0.1], pixelunits=u"\AA", shape=None, 
+               pixelsize=[0.1,0.1,0.1], pixelunits=u"\\AA", shape=None, 
                voltage=0.0, C3=0.0, gain=1.0,
                compressor=None, clevel=1, n_threads=None, quickStats=True, 
                )
@@ -753,7 +753,8 @@ def writeMRCHeader( f, header, endchar = '<' ):
     # Print MX, MY, MZ, the number of pixels
     np.array( dimensions, dtype=endchar+"i4" ).tofile(f)
     # Print cellsize = pixelsize * dimensions
-    if header['pixelunits'] == "\AA":
+    # '\AA' will eventually be deprecated, please cease using it.
+    if header['pixelunits'] == "\\AA" or header['pixelunits'] == '\AA':
         AApixelsize = np.array(header['pixelsize'])
     elif header['pixelunits'] == "\mum":
         AApixelsize = np.array(header['pixelsize'])*10000.0

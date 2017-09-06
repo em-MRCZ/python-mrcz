@@ -205,7 +205,9 @@ class PythonMrczTests(unittest.TestCase):
     
 cmrczProg = which( 'mrcz' )
 if cmrczProg is None:
-    print( "NOTE: mrcz not found in system path, not testing python-mrcz to c-mrcz cross-compatibility" )
+    # This is emitting on autotesting so fail silently.
+    # print( "NOTE: mrcz not found in system path, not testing python-mrcz to c-mrcz cross-compatibility" )
+    pass
 else:
 
     class PythonToCMrczTests(unittest.TestCase):
