@@ -13,11 +13,8 @@ import os, os.path, sys
 import subprocess as sub
 import tempfile
 import unittest
-try:
-    from termcolor import colored
-except:
-    def colored( string ):
-        return string
+from logging import Logger
+log = Logger(__name__)
         
 def which( program ):
     # Tries to locate a program 
@@ -72,7 +69,7 @@ class PythonMrczTests(unittest.TestCase):
         
         rereadMage, rereadHeader = mrcz.readMRC( mrcName, pixelunits=u"\AA")
         try: os.remove( mrcName )
-        except IOError: print( "Warning: file {} left on disk".format(mrcName) )
+        except IOError: log.info( "Warning: file {} left on disk".format(mrcName) )
         
         npt.assert_array_almost_equal( testMage, rereadMage )
         npt.assert_array_equal( rereadHeader['voltage'], 300.0 )
@@ -82,60 +79,60 @@ class PythonMrczTests(unittest.TestCase):
         npt.assert_array_equal( rereadHeader['gain'], 1.05 )
     
     def test_MRC_uncompressed(self):
-        print( "Testing uncompressed MRC, float-32" )
+        log.info( "Testing uncompressed MRC, float-32" )
         testMage0 = np.random.normal( size=[2,128,96] ).astype( float_dtype )
         self.compReadWrite( testMage0, compressor=None )
-        print( "Testing uncompressed MRC, uint-4" )
+        log.info( "Testing uncompressed MRC, uint-4" )
         testMage1 = np.random.randint( 10, size=[2,128,96], dtype='int8' )
         self.compReadWrite( testMage1, casttype='uint4', compressor=None )
-        print( "Testing uncompressed MRC, int-8" )
+        log.info( "Testing uncompressed MRC, int-8" )
         testMage2 = np.random.randint( 10, size=[2,128,96], dtype='int8' )
         self.compReadWrite( testMage2, compressor=None )
-        print( "Testing uncompressed MRC, int-16" )
+        log.info( "Testing uncompressed MRC, int-16" )
         testMage3 = np.random.randint( 10, size=[2,128,96], dtype='int16' )
         self.compReadWrite( testMage3, compressor=None )
-        print( "Testing uncompressed MRC, uint-16" )
+        log.info( "Testing uncompressed MRC, uint-16" )
         testMage4 = np.random.randint( 10, size=[2,128,96], dtype='uint16' )
         self.compReadWrite( testMage4, compressor=None )
-        print( "Testing uncompressed MRC, complex-64" )
+        log.info( "Testing uncompressed MRC, complex-64" )
         testMage5 = np.random.uniform( 10, size=[2,128,96] ).astype('float32') + \
                    1j * np.random.uniform( 10, size=[2,128,96]  ).astype('float32')
         self.compReadWrite( testMage5, compressor=None )
         
         
     def test_MRCZ_zstd1(self):
-        print( "Testing 'zstd_1' MRC, float-32" )
+        log.info( "Testing 'zstd_1' MRC, float-32" )
         testMage0 = np.random.normal( size=[2,128,96] ).astype( float_dtype )
         self.compReadWrite( testMage0, compressor='zstd', clevel=1 )
-        print( "Testing 'zstd_1' MRC, int-8" )
+        log.info( "Testing 'zstd_1' MRC, int-8" )
         testMage2 = np.random.randint( 10, size=[2,128,96], dtype='int8' )
         self.compReadWrite( testMage2, compressor='zstd', clevel=1 )
-        print( "Testing 'zstd_1' MRC, int-16" )
+        log.info( "Testing 'zstd_1' MRC, int-16" )
         testMage3 = np.random.randint( 10, size=[2,128,96], dtype='int16' )
         self.compReadWrite( testMage3, compressor='zstd', clevel=1 )
-        print( "Testing zstd_1 MRC, uint-16" )
+        log.info( "Testing zstd_1 MRC, uint-16" )
         testMage4 = np.random.randint( 10, size=[2,128,96], dtype='uint16' )
         self.compReadWrite( testMage4, compressor='zstd', clevel=1 )
-        print( "Testing 'zstd_1' MRC, complex-64" )
+        log.info( "Testing 'zstd_1' MRC, complex-64" )
         testMage5 = np.random.normal( 10, size=[2,128,96] ).astype('float32') + \
                    1j * np.random.normal( 10, size=[2,128,96]  ).astype('float32')
         self.compReadWrite( testMage5, compressor='zstd', clevel=1 )
         
     
     def test_MRCZ_lz9(self):
-        print( "Testing 'lz4_9' MRC, float-32" )
+        log.info( "Testing 'lz4_9' MRC, float-32" )
         testMage0 = np.random.normal( size=[2,128,96] ).astype( float_dtype )
         self.compReadWrite( testMage0, compressor='lz4', clevel=9 )
-        print( "Testing 'lz4_9' MRC, int-8" )
+        log.info( "Testing 'lz4_9' MRC, int-8" )
         testMage2 = np.random.randint( 10, size=[2,128,96], dtype='int8' )
         self.compReadWrite( testMage2, compressor='lz4', clevel=9 )
-        print( "Testing 'lz4_9' MRC, int-16" )
+        log.info( "Testing 'lz4_9' MRC, int-16" )
         testMage3 = np.random.randint( 10, size=[2,128,96], dtype='int16' )
         self.compReadWrite( testMage3, compressor='lz4', clevel=9 )
-        print( "Testing lz4_9 MRC, uint-16" )
+        log.info( "Testing lz4_9 MRC, uint-16" )
         testMage4 = np.random.randint( 10, size=[2,128,96], dtype='uint16' )
         self.compReadWrite( testMage4, compressor='lz4', clevel=9 )
-        print( "Testing 'lz4_9' MRC, complex-64" )
+        log.info( "Testing 'lz4_9' MRC, complex-64" )
         testMage5 = np.random.normal( 10, size=[2,128,96] ).astype('float32') + \
                    1j * np.random.normal( 10, size=[2,128,96]  ).astype('float32')
         self.compReadWrite( testMage5, compressor='lz4', clevel=9 )
@@ -155,7 +152,7 @@ class PythonMrczTests(unittest.TestCase):
         rereadMage, rereadHeader = mrcz.readMRC( mrcName, pixelunits=u"\AA" )
 
         try: os.remove( mrcName )
-        except IOError: print( "Warning: file {} left on disk".format(mrcName) )
+        except IOError: log.info( "Warning: file {} left on disk".format(mrcName) )
         
         assert( np.all(testMage.shape == rereadMage.shape) )
         assert( testMage.dtype == rereadMage.dtype )
@@ -188,7 +185,7 @@ class PythonMrczTests(unittest.TestCase):
         rereadMage, rereadHeader = worker.result()
 
         try: os.remove( mrcName )
-        except IOError: print( "Warning: file {} left on disk".format(mrcName) )
+        except IOError: log.info( "Warning: file {} left on disk".format(mrcName) )
         
         assert( np.all(testMage.shape == rereadMage.shape) )
         assert( testMage.dtype == rereadMage.dtype )
@@ -205,9 +202,8 @@ class PythonMrczTests(unittest.TestCase):
     
 cmrczProg = which( 'mrcz' )
 if cmrczProg is None:
-    # This is emitting on autotesting so fail silently.
-    # print( "NOTE: mrcz not found in system path, not testing python-mrcz to c-mrcz cross-compatibility" )
-    pass
+    log.debug( "NOTE: mrcz not found in system path, not testing python-mrcz to c-mrcz cross-compatibility" )
+
 else:
 
     class PythonToCMrczTests(unittest.TestCase):
@@ -254,63 +250,63 @@ else:
             npt.assert_array_equal( rereadHeader['gain'], 1.05 )
             
         def test_crossMRC_uncompressed(self):
-            print( "Testing cross-compatibility c-mrcz and python-mrcz, uncompressed, int-8" )
+            log.info( "Testing cross-compatibility c-mrcz and python-mrcz, uncompressed, int-8" )
             testMage0 = np.random.randint( 10, size=[2,128,64], dtype='int8' )
             self.crossReadWrite( testMage0, compressor=None, clevel=1 )
-            print( "Testing cross-compatibility c-mrcz and python-mrcz, uncompressed, int-16" )
+            log.info( "Testing cross-compatibility c-mrcz and python-mrcz, uncompressed, int-16" )
             testMage1 = np.random.randint( 10, size=[2,128,64], dtype='int16' )
             self.crossReadWrite( testMage1, compressor=None, clevel=1 )
-            print( "Testing cross-compatibility c-mrcz and python-mrcz, uncompressed, float32" )
+            log.info( "Testing cross-compatibility c-mrcz and python-mrcz, uncompressed, float32" )
             testMage1 = np.random.normal( size=[2,128,64] ).astype( 'float32' )
             self.crossReadWrite( testMage1, compressor=None, clevel=1 )
-            print( "Testing cross-compatibility c-mrcz and python-mrcz, uncompressed, uint-16" )
+            log.info( "Testing cross-compatibility c-mrcz and python-mrcz, uncompressed, uint-16" )
             testMage4 = np.random.randint( 10, size=[2,128,96], dtype='uint16' )
             self.crossReadWrite( testMage4, compressor=None, clevel=1 )
-            print( "Testing cross-compatibility c-mrcz and python-mrcz, uncompressed, complex-64" )
+            log.info( "Testing cross-compatibility c-mrcz and python-mrcz, uncompressed, complex-64" )
             testMage5 = np.random.normal( 10, size=[2,128,96] ).astype('float32') + \
                    1j * np.random.normal( 10, size=[2,128,96]  ).astype('float32')
             self.crossReadWrite( testMage5, compressor=None, clevel=1 )
         
         def test_crossMRC_zstd1(self):
-            print( "Testing cross-compatibility c-mrcz and python-mrcz, zstd_1, int-8" )
+            log.info( "Testing cross-compatibility c-mrcz and python-mrcz, zstd_1, int-8" )
             testMage0 = np.random.randint( 10, size=[2,128,64], dtype='int8' )
             self.crossReadWrite( testMage0, compressor='zstd', clevel=1 )
-            print( "Testing cross-compatibility c-mrcz and python-mrcz, zstd_1, int-16" )
+            log.info( "Testing cross-compatibility c-mrcz and python-mrcz, zstd_1, int-16" )
             testMage1 = np.random.randint( 10, size=[2,128,64], dtype='int16' )
             self.crossReadWrite( testMage1, compressor='zstd', clevel=1 )
-            print( "Testing cross-compatibility c-mrcz and python-mrcz, zstd_1, float32" )
+            log.info( "Testing cross-compatibility c-mrcz and python-mrcz, zstd_1, float32" )
             testMage1 = np.random.normal( size=[2,128,64] ).astype( 'float32' )
             self.crossReadWrite( testMage1, compressor='zstd1', clevel=1 )
-            print( "Testing cross-compatibility c-mrcz and python-mrcz, zstd_1, uint-16" )
+            log.info( "Testing cross-compatibility c-mrcz and python-mrcz, zstd_1, uint-16" )
             testMage4 = np.random.randint( 10, size=[2,128,96], dtype='uint16' )
             self.crossReadWrite( testMage4, compressor='zstd', clevel=1 )
-            print( "Testing cross-compatibility c-mrcz and python-mrcz, zstd_1, complex-64" )
+            log.info( "Testing cross-compatibility c-mrcz and python-mrcz, zstd_1, complex-64" )
             testMage5 = np.random.normal( 10, size=[2,128,96] ).astype('float32') + \
                    1j * np.random.normal( 10, size=[2,128,96]  ).astype('float32')
             self.crossReadWrite( testMage5, compressor='zstd', clevel=1 )
             
         def test_crossMRC_lz4_9(self):
-            print( "Testing cross-compatibility c-mrcz and python-mrcz, lz4_9, int-8" )
+            log.info( "Testing cross-compatibility c-mrcz and python-mrcz, lz4_9, int-8" )
             testMage0 = np.random.randint( 10, size=[2,128,64], dtype='int8' )
             self.crossReadWrite( testMage0, compressor='lz4', clevel=9 )
-            print( "Testing cross-compatibility c-mrcz and python-mrcz, lz4_9, int-16" )
+            log.info( "Testing cross-compatibility c-mrcz and python-mrcz, lz4_9, int-16" )
             testMage1 = np.random.randint( 10, size=[2,128,64], dtype='int16' )
             self.crossReadWrite( testMage1, compressor='lz4', clevel=9 )
-            print( "Testing cross-compatibility c-mrcz and python-mrcz, lz4_9, float32" )
+            log.info( "Testing cross-compatibility c-mrcz and python-mrcz, lz4_9, float32" )
             testMage1 = np.random.normal( size=[2,128,64] ).astype( 'float32' )
             self.crossReadWrite( testMage1, compressor='lz4', clevel=9 )
-            print( "Testing cross-compatibility c-mrcz and python-mrcz, lz4_9, uint-16" )
+            log.info( "Testing cross-compatibility c-mrcz and python-mrcz, lz4_9, uint-16" )
             testMage4 = np.random.randint( 10, size=[2,128,96], dtype='uint16' )
             self.crossReadWrite( testMage4, compressor='lz4', clevel=9 )
-            print( "Testing cross-compatibility c-mrcz and python-mrcz, lz4_9, complex-64" )
+            log.info( "Testing cross-compatibility c-mrcz and python-mrcz, lz4_9, complex-64" )
             testMage5 = np.random.normal( 10, size=[2,128,96] ).astype('float32') + \
                    1j * np.random.normal( 10, size=[2,128,96]  ).astype('float32')
             self.crossReadWrite( testMage5, compressor='lz4', clevel=9 )
     pass
 
-def test():
+def test( verbosity=2 ):
     from mrcz import __version__
-    print( "MRCZ TESTING FOR VERSION %s " % __version__ )
+    log.info( "MRCZ TESTING FOR VERSION %s " % __version__ )
     
     theSuite = unittest.TestSuite()
 
@@ -318,7 +314,7 @@ def test():
     if cmrczProg is not None:
         theSuite.addTest(unittest.makeSuite(PythonToCMrczTests))
 
-    unittest.TextTestRunner(verbosity=2).run(theSuite)
+    unittest.TextTestRunner(verbosity=verbosity).run(theSuite)
     #unittest.main( exit=False )
     
 if __name__ == "__main__":
@@ -326,7 +322,6 @@ if __name__ == "__main__":
     test()
     
 
-    
     
 
 

@@ -493,9 +493,16 @@ def writeMRC( input_image, MRCfilename, meta=None, endian='le', dtype=None,
     """
 
     if len( input_image.shape ) == 2:
-
         # If it's a 2D image we force it to 3D - this makes life easier later:
         input_image = input_image.reshape( ( 1, input_image.shape[0], input_image.shape[1] ) )
+
+    # For dask, we don't want to import dask, but we can still work-around how to 
+    # check its type without isinstance()
+    image_type = type(input_image)
+    if image_type.__module__ == 'dask.array.core' and image_type.__name__ == 'Array':
+        # Ideally it would be faster to iterate over the chunks and pass each one 
+        # to blosc but that likely requires c-blosc2
+        input_image = input_image.__array__()
 
     # We will need this regardless if writing to an existing file or not:
     if endian == 'le':
