@@ -319,7 +319,7 @@ def test(verbosity=2):
     if cmrczProg is not None:
         theSuite.addTest(unittest.makeSuite(PythonToCMrczTests))
 
-    unittest.TextTestRunner(verbosity=verbosity).run(theSuite)
+    return unittest.TextTestRunner(verbosity=verbosity).run(theSuite)
     
 if __name__ == "__main__":
     # Should generally call "python -m unittest -v mrcz.test" for continuous integration

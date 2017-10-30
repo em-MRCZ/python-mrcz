@@ -811,7 +811,7 @@ def writeMRCHeader( f, header, endchar = '<' ):
     # Extended header, if meta is not None
     if isinstance(header['meta'], dict):
         # Encode metadata as bytes with UTF-8
-        for key, value in header['meta']:
+        for key, value in header['meta'].items():
             # Sanitize types that `python-rapidjson` and `json` don't understand.
             # Should we make a copy of `meta` in this case?  We are modifying 
             # the passed data.
