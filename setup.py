@@ -2,9 +2,9 @@
 ########################################################################
 #
 #       mrcz compressed MRC-file format package
-#       License: MIT
+#       License: BSD-3-clause
 #       Created: 02 November 2016
-#       Author:  Robert A. McLeod - robbmcleod@gmail.com
+#       Author:  See AUTHORS.txt
 #
 ########################################################################
 
