@@ -1,0 +1,4 @@
+MRCZ was initially written by Robert A. McLeod
+
+Ricardo Righetto contributed the ability to index individual slices/frames 
+in uncompressed files and bug fixes.
