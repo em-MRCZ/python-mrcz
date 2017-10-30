@@ -1,0 +1,32 @@
+sudo: false
+
+language: python
+
+python:
+  - 2.7
+  - 3.4
+  - 3.5
+  - 3.6
+
+before_install:
+  - uname -a
+  - free -m
+  - df -h
+  - ulimit -a
+  - if [ "$CXX" = "g++" ]; then sudo apt-get install -qq g++-5.4; fi
+  - if [ "$CXX" = "g++" ]; then export CXX="g++-5.4" CC="gcc-5.4"; fi
+  - pip install -q numpy setuptools blosc
+  - python -V
+
+install:
+  - pip install .
+
+script:
+  - mkdir empty
+  - cd empty
+  - python -c "import sys; import mrcz;sys.exit(0 if mrcz.test().wasSuccessful() else 1)"
+
+notifications:
+  email: false
+
+

@@ -5,7 +5,6 @@ Created on Fri Sep 30 09:44:09 2016
 @author: Robert A. McLeod
 """
 
-
 import mrcz
 import numpy as np
 import numpy.testing as npt
@@ -304,7 +303,13 @@ else:
             self.crossReadWrite( testMage5, compressor='lz4', clevel=9 )
     pass
 
-def test( verbosity=2 ):
+def test(verbosity=2):
+    '''
+    test(verbosity=2)
+
+    Run ``unittest`` suite for ``mrcz`` package.
+    '''
+
     from mrcz import __version__
     log.info( "MRCZ TESTING FOR VERSION %s " % __version__ )
     
@@ -315,7 +320,6 @@ def test( verbosity=2 ):
         theSuite.addTest(unittest.makeSuite(PythonToCMrczTests))
 
     unittest.TextTestRunner(verbosity=verbosity).run(theSuite)
-    #unittest.main( exit=False )
     
 if __name__ == "__main__":
     # Should generally call "python -m unittest -v mrcz.test" for continuous integration
