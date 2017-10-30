@@ -1,15 +1,17 @@
-============================================================
-MRCZ meta-compressed file-format package (Python 2.7/3.3-3.5)
-============================================================
+==============================================
+Python MRCZ meta-compressed file-format module
+==============================================
 
-python-MRCZ is a package designed to supplement the venerable MRC image file 
-format with a highly efficient compressed variant, using the Blosc 
+`mrcz` is a package designed to supplement the venerable MRC image file 
+format with a highly efficient compressed variant, using the `blosc` 
 meta-compressor library to shrink files on disk and greatly accelerate file 
-input/output for the era of "Big Data" in electron (and optical) microscopy.
+input/output for the era of "Big Data" in electron and optical microscopy.
 
-python-MRCZ is currently considered to be a `beta` development state.
+Python versions 2.7, 3.4-3.6 are supported.
 
-python-MRCZ is released under the BSD 3-clause license.
+`mrcz` is currently considered to be a `beta` development state.
+
+`mrcz` is released under the BSD 3-clause license.
 
 Installation
 ------------
@@ -19,7 +21,7 @@ advised.  After installation, from a command prompt type::
 
     pip install mrcz
 
-python-MRCZ has the following dependencies:
+`mrcz` has the following dependencies:
 
 * `numpy`
 * `blosc`
