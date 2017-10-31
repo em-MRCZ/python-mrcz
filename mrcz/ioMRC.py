@@ -21,7 +21,7 @@ import os, os.path, sys
 import numpy as np
 import threading
 import struct
-if sys.version_info > (2,7):
+if sys.version_info > (3,0):
     from concurrent.futures import ThreadPoolExecutor
 else:
     from futures import ThreadPoolExecutor
