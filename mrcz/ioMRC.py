@@ -17,11 +17,16 @@ http://emportal.nysbc.org/mrc2014/
 Tested output on: Gatan GMS, IMOD, Chimera, Relion, MotionCorr, UnBlur
 '''
 
-import os, os.path
+import os, os.path, sys
 import numpy as np
 import threading
 import struct
-from concurrent.futures import ThreadPoolExecutor
+if sys.version_info > (2,7):
+    from concurrent.futures import ThreadPoolExecutor
+else:
+    from futures import ThreadPoolExecutor
+
+
 import logging
 logger = logging.getLogger('MRCZ')
 try: 
