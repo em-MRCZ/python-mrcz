@@ -15,7 +15,8 @@ before_install:
   - ulimit -a
   - if [ "$CXX" = "g++" ]; then sudo apt-get install -qq g++-5.4; fi
   - if [ "$CXX" = "g++" ]; then export CXX="g++-5.4" CC="gcc-5.4"; fi
-  - pip install -q numpy setuptools blosc
+  - pip install setuptools
+  - pip install -r requirements.txt
   - python -V
 
 install:

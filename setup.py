@@ -31,7 +31,8 @@ elif sys.version_info[0] == 3:
 else:
     exit_with_error("You need Python 2.6/3.3 or greater to install mrcz")
 
-tests_require = ['numpy']
+with open('requirements.txt') as f:
+    requirements = f.read().splitlines()
 ########### End of checks ##########
 
 
@@ -81,8 +82,8 @@ blocked and multi-threaded way to take advantage of modern multi-core CPUs.
       url = 'http://github.com/em-MRCZ/python-mrcz',
       license = 'https://opensource.org/licenses/BSD-3-Clause',
       platforms = ['any'],
-
-      tests_require=tests_require,
+      install_requires=requirements,
+      setup_requires=['setuptools'],
       packages = ['mrcz'],
 
 )
