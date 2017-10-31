@@ -37,12 +37,12 @@ try:
     blosc.set_releasegil(True)
 except:
     bloscPresent = False
-    logger.info( 'MRCZ: `blosc` meta-compression library not found, file compression disabled.' )
+    logger.info( '`blosc` meta-compression library not found, file compression disabled.' )
 try: 
     import rapidjson as json
 except ImportError:
     import json
-    logger.info( 'MRCZ: `python-rapidjson` not found, using builtin `json` instead.' )
+    logger.info( '`python-rapidjson` not found, using builtin `json` instead.' )
 
 # Buffer for file I/O
 # Quite arbitrary, in bytes (hand-optimized)
