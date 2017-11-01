@@ -1,4 +1,4 @@
 setuptools
 numpy>=1.8
 blosc>=1.4
-futures;python_version<="2.7"
+futures;python_version<"3.0"
