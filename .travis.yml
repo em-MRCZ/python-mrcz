@@ -18,7 +18,6 @@ before_install:
   - pip install setuptools
   - pip install -r requirements.txt --verbose
   - python -V
-  - python -c "print(sys.version_info); import futures"
 
 
 install:
@@ -27,7 +26,7 @@ install:
 script:
   - mkdir empty
   - cd empty
-  - python -c "import sys; import mrcz;sys.exit(0 if mrcz.test().wasSuccessful() else 1)"
+  - python -c "import sys; import mrcz; sys.exit(0 if mrcz.test().wasSuccessful() else 1)"
 
 notifications:
   email: false
