@@ -16,11 +16,13 @@ before_install:
   - if [ "$CXX" = "g++" ]; then sudo apt-get install -qq g++-5.4; fi
   - if [ "$CXX" = "g++" ]; then export CXX="g++-5.4" CC="gcc-5.4"; fi
   - pip install setuptools
-  - pip install -r requirements.txt
+  - pip install -r requirements.txt --verbose
   - python -V
+  - python -c "print(sys.version_info); try: import futures; except ImportError: print('`futures` not installed')"
+
 
 install:
-  - python setup.py install
+  - pip install . --verbose
 
 script:
   - mkdir empty
