@@ -18,7 +18,7 @@ before_install:
   - pip install setuptools
   - pip install -r requirements.txt --verbose
   - python -V
-  - python -c "print(sys.version_info); try: import futures; except ImportError: print('`futures` not installed')"
+  - python -c "print(sys.version_info); import futures"
 
 
 install:
