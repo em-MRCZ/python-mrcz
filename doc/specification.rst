@@ -50,6 +50,8 @@ Optional deviations from CCPEM MRC2014 standard
    **Deprecated**.
 4. **Word 36 (@ byte 14)**: Size of compressed data in bytes, including 
    ``blosc`` headers.  Present for convenience only.
+5. **Word 57 (@ byte 224)**: The ascii-encoded identifier label 'MRCZ<version>'.
+   For example, ``b'MRCZ0.3.1'.
 
 Failure to include any of these variables will not result in an exception.
 

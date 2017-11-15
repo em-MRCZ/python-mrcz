@@ -25,7 +25,7 @@ if sys.version_info > (3,0):
     from concurrent.futures import ThreadPoolExecutor
 else:
     from futures import ThreadPoolExecutor
-
+from mrcz.__version__ import __version__
 
 import logging
 logger = logging.getLogger('MRCZ')
@@ -812,6 +812,11 @@ def writeMRCHeader( f, header, endchar = '<' ):
     else:
         f.write( struct.pack( b'BB', 17, 17 ) )
         #np.array( [17,17], dtype='uint8' ).tofile(f)
+
+    # Write b'MRCZ<version>' into labels
+    f.seek(220)
+    f.write( struct.pack( b'i', 1) ) # We have one label
+    f.write( b'MRCZ' + __version__.encode('ascii') )
     
     # Extended header, if meta is not None
     if isinstance(header['meta'], dict):

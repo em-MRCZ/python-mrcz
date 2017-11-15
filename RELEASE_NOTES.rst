@@ -1,3 +1,9 @@
+0.3.1
+-----
+
+Added ascii identifier label 'MRCZ' + <__version__> to the labels.  I.e. at 
+byte 224 in the header will appear b'MRCZ0.3.1'
+
 0.3.0
 -----
 
