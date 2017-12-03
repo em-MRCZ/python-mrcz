@@ -198,6 +198,43 @@ class PythonMrczTests(unittest.TestCase):
         npt.assert_array_equal( rereadHeader['C3'], 2.7 )
         npt.assert_array_equal( rereadHeader['gain'], 1.05 )
         pass
+
+    def test_AsList(self):
+        testFrame = np.random.uniform( high=10, size=[128,64] ).astype( 'int8' )
+        testMage = [testFrame, testFrame]
+
+        meta = {'foo': 5, 'bar': 42}
+        mrcName = os.path.join( tmpDir, "testMage.mrcz" )
+                
+        pixelsize = [5.6, 3.4]
+        mrcz.writeMRC( testMage, mrcName, meta=meta,
+                                pixelsize=pixelsize, pixelunits=u"\AA",
+                                voltage=300.0, C3=2.7, gain=1.05,
+                                compressor='zstd', clevel=1, n_threads=4 )
+                                
+        rereadMage, rereadHeader = mrcz.readMRC( mrcName, pixelunits=u"\AA", asList=True )
+        # Test that we can load as an array
+        mageAsArray, _ = mrcz.readMRC( mrcName, pixelunits=u"\AA", asList=False )
+
+        try: os.remove( mrcName )
+        except IOError: log.info( "Warning: file {} left on disk".format(mrcName) )
+        
+        assert( isinstance(rereadMage, list) )
+        assert( len(rereadMage) == len(testMage) )
+
+        for testFrame, rereadFrame in zip(testMage, rereadMage):
+            assert( testFrame.dtype == rereadFrame.dtype )
+            npt.assert_array_almost_equal(testFrame, rereadFrame)
+
+        for key in meta:
+            assert( meta[key] == rereadHeader[key] )
+
+        npt.assert_array_equal( rereadHeader['voltage'], 300.0 )
+        npt.assert_array_almost_equal( rereadHeader['pixelsize'][1:], pixelsize )
+        npt.assert_array_equal( rereadHeader['pixelunits'], u"\AA" )
+        npt.assert_array_equal( rereadHeader['C3'], 2.7 )
+        npt.assert_array_equal( rereadHeader['gain'], 1.05 )
+        pass
     
 cmrczProg = which( 'mrcz' )
 if cmrczProg is None:

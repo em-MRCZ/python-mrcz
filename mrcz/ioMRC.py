@@ -131,12 +131,12 @@ def defaultHeader():
     
     
 def readMRC( MRCfilename, idx=None, endian='le', 
-              pixelunits=u'\\AA', fileConvention = 'ccpem', 
-              useMemmap=False, n_threads = None  ):
+              pixelunits=u'\\AA', fileConvention='ccpem', 
+              useMemmap=False, n_threads=None, asList=False ):
     '''
     readMRC( MRCfilename, idx=None, endian='le', 
-              pixelunits=u'\\AA', fileConvention = 'ccpem', 
-              useMemmap=False, n_threads = None  )
+              pixelunits=u'\\AA', fileConvention='ccpem', 
+              useMemmap=False, n_threads=None, asList=False )
     
     Imports an MRC/Z file as a NumPy array and a meta-data dict.  
     
@@ -144,7 +144,7 @@ def readMRC( MRCfilename, idx=None, endian='le',
         
         [image, meta] = readMRC( MRCfilename, idx=None, endian='le', 
               pixelunits=u'\\AA', fileConvention = 'ccpem', 
-              useMemmap=False, n_threads = None  ):
+              useMemmap=False, n_threads = None, asList=False  ):
     
     * ``image`` is a NumPy array.
     * ``meta`` is a dict with various fields relating to the MRC header information 
@@ -163,33 +163,37 @@ def readMRC( MRCfilename, idx=None, endian='le',
     * ``n_threads`` is the number of threads to use for decompression, defaults to 
        use all virtual cores.
     * ``useMemmap=True`` returns a ``numpy.memmap`` instead of a ``numpy.ndarray``
+    * ``asList=True`` returns a `list` of 2D NumPy arrays, with the list indices 
+      representing the Z-axis. Since the data is non-contigious, very large 
+      arrays can fit more easily into memory. Ignored if ``useMemmap=True``.
+
 
     '''
 
-    with open( MRCfilename, 'rb', buffering=BUFFERSIZE ) as f:
+    with open(MRCfilename, 'rb', buffering=BUFFERSIZE) as f:
         # Read in header as a dict
         
-        header = readMRCHeader( MRCfilename, endian=endian, fileConvention = fileConvention, pixelunits=pixelunits )
+        header = readMRCHeader(MRCfilename, endian=endian, fileConvention = fileConvention, pixelunits=pixelunits)
         # Support for compressed data in MRCZ
 
         
         if ( (header['compressor'] in REVERSE_COMPRESSOR_ENUM) 
             and (REVERSE_COMPRESSOR_ENUM[header['compressor']] > 0) 
             and idx == None ):
-            return __MRCZImport( f, header, endian=endian, fileConvention = fileConvention, 
-                                n_threads=n_threads )
-        # Else save as MRC file
+            return __MRCZImport(f, header, endian=endian, fileConvention=fileConvention, 
+                                n_threads=n_threads, asList=asList)
+        # Else load as uncompressed MRC file
 
         if idx != None:
         # If specific images were requested:
         # TO DO: add support to read all images within a range at once
 
             if header['compressor'] != None:
-                raise RuntimeError( 'Reading from arbitrary positions not supported for compressed files. Compressor = %s' % header['compressor'] )
+                raise RuntimeError( 'Reading from arbitrary positions not supported for compressed files. Compressor = %s'%header['compressor'] )
             if np.isscalar( idx ):
-                indices = np.array( [idx, idx], dtype='int' )
+                indices = np.array([idx, idx], dtype='int')
             else:
-                indices = np.array( idx, dtype='int' )
+                indices = np.array(idx, dtype='int')
 
             # Convert to old way:
             idx = indices[0]
@@ -201,17 +205,17 @@ def readMRC( MRCfilename, idx=None, endian='le',
 
             # Just check if the desired image is within the stack range:
             if idx < 0 or idx >= header['dimensions'][0]:
-                raise ValueError( 'Error: image or slice index out of range. idx = %d, z_dimension = %d' % (idx, header['dimensions'][0]) )
+                raise ValueError( 'Error: image or slice index out of range. idx = %d, z_dimension = %d'%(idx, header['dimensions'][0]) )
             elif idx + n > header['dimensions'][0]:
-            	raise ValueError( 'Error: image or slice index out of range. idx + n = %d, z_dimension = %d' % (idx + n, header['dimensions'][0]) )
+            	raise ValueError( 'Error: image or slice index out of range. idx + n = %d, z_dimension = %d'%(idx + n, header['dimensions'][0]) )
             elif n < 1:
-            	raise ValueError( 'Error: n must be >= 1. n = %d' % n )
+            	raise ValueError( 'Error: n must be >= 1. n = %d'%n )
             else:
                 # We adjust the dimensions of the returned image in the header:
                 header['dimensions'][0] = n
 
                 # This offset will be applied to f.seek():
-                offset = idx * np.product( header['dimensions'][1:] ) * np.dtype( header['dtype'] ).itemsize
+                offset = idx * np.product(header['dimensions'][1:])*np.dtype(header['dtype']).itemsize
 
         else:
             offset = 0
@@ -220,26 +224,36 @@ def readMRC( MRCfilename, idx=None, endian='le',
         if bool(useMemmap):
             image = np.memmap( f, dtype=header['dtype'], 
                               mode='c', 
-                              shape=(header['dimensions'][0],header['dimensions'][1],header['dimensions'][2]) )
-        else:
-            image = np.fromfile( f, dtype=header['dtype'], 
-                                count=np.product( header['dimensions'] ) )
-                                
+                              shape=tuple(dim for dim in header['dimensions']) )
+        else: # Load entire file into memory
+            dims = header['dimensions']
+            if asList: # List of NumPy 2D-arrays
+                XYsize = np.product(dims[1:])
+                dtype=header['dtype']
 
-        if header['MRCtype'] == 101:
-            # Seems the 4-bit is interlaced ...
-            interlaced_image = image
-            
-            image = np.empty( np.product(header['dimensions']), dtype=header['dtype'] )
+                # np.fromfile advances the file pointer `f` for us.
+                image = [ np.squeeze(np.fromfile(f, dtype=dtype, count=XYsize).reshape(dims[1:])) for imSlice in range(dims[0]) ]
+               
+            else: # NumPy 3D-array
+                image = np.fromfile(f, dtype=header['dtype'], count=np.product(dims))
+                if header['MRCtype'] == 101:
+                    # Seems the 4-bit is interlaced ...
+                    interlaced_image = image
+                    
+                    image = np.empty( np.product(dims), dtype=header['dtype'] )
 
-            image[0::2] = np.left_shift(interlaced_image,4) / 15
-            image[1::2] = np.right_shift(interlaced_image,4)
+                    image[0::2] = np.left_shift(interlaced_image,4) / 15
+                    image[1::2] = np.right_shift(interlaced_image,4)
 
-        image = np.squeeze( np.reshape( image, header['dimensions'] ) )
+                image = np.squeeze( image.reshape(dims) )
+
+
+
         return image, header
 
        
-def __MRCZImport( f, header, endian='le', fileConvention = 'ccpem', returnHeader = False, n_threads=None ):
+def __MRCZImport( f, header, endian='le', fileConvention='ccpem', 
+        returnHeader=False, n_threads=None, asList=False ):
     '''
     Equivalent to MRCImport, but for compressed data using the blosc library.
     
@@ -258,18 +272,28 @@ def __MRCZImport( f, header, endian='le', fileConvention = 'ccpem', returnHeader
         blosc.nthreads = blosc.detect_number_of_cores()
     else:
         blosc.nthreads = n_threads
-        
-    image = np.empty( header['dimensions'], dtype=header['dtype'] )
+
+    dims = header['dimensions']
+    dtype = header['dtype']
+    if asList:
+        image = []
+    else:
+        image = np.empty(dims, dtype=dtype )
     
     blosc_chunk_pos = DEFAULT_HEADER_LEN + header['extendedBytes']
-    for J in np.arange(image.shape[0]):
+    for J in range(dims[0]):
         f.seek( blosc_chunk_pos )
         ( (nbytes, blockSize, ctbytes ), (ver_info) ) = readBloscHeader(f)
         f.seek(blosc_chunk_pos)
         # blosc includes the 16 header bytes in ctbytes
-        image[J,:,:] = np.reshape( 
-            np.frombuffer( blosc.decompress( f.read( ctbytes ) ), dtype=image.dtype ),
-            image.shape[1:] )
+        if asList:
+            image.append( np.squeeze(
+                np.frombuffer(blosc.decompress(f.read(ctbytes)), 
+                                dtype=dtype).reshape(dims[1:])
+            ))
+        else:
+            image[J,:,:] = np.frombuffer(blosc.decompress(f.read(ctbytes)), 
+                                dtype=dtype).reshape(dims[1:])
             
         blosc_chunk_pos += (ctbytes)
         pass
@@ -277,15 +301,17 @@ def __MRCZImport( f, header, endian='le', fileConvention = 'ccpem', returnHeader
     
     if header['MRCtype'] == 101:
         # Seems the 4-bit is interlaced 
+        if asList:
+            raise NotImplementedError('MRC type 101 (uint4) not supported with return as `list`')
         interlaced_image = image
             
-        image = np.empty( np.product(header['dimensions']), dtype=header['dtype'] )
+        image = np.empty( np.product(header['dimensions']), dtype=dtype )
         # Bit-shift and Bit-and to seperate decimated pixels
         image[0::2] = np.left_shift(interlaced_image,4) / 15
         image[1::2] = np.right_shift(interlaced_image,4)
 
-    # We don't need to reshape packed data.
-    image = np.squeeze( image )
+    if not asList:
+        image = np.squeeze( image )
     
     return image, header
     
@@ -304,6 +330,7 @@ def readBloscHeader( filehandle ):
         |   +----------versionlz
         +--------------version
     '''
+    # Probably 
     [version, versionlz, flags, typesize] = np.fromfile( filehandle, dtype='uint8', count=4 )
     [nbytes, blocksize, ctbytes] = np.fromfile( filehandle, dtype='uint32', count=3 )
     return ( [nbytes, blocksize, ctbytes], [version, versionlz, flags, typesize] )
@@ -471,9 +498,7 @@ def writeMRC( input_image, MRCfilename, meta=None, endian='le', dtype=None,
     *Note: MRC definitions are not consistent. Generally we support the CCPEM schema.*
     '''
 
-    if len( input_image.shape ) == 2:
-        # If it's a 2D image we force it to 3D - this makes life easier later:
-        input_image = input_image.reshape( ( 1, input_image.shape[0], input_image.shape[1] ) )
+
 
     # For dask, we don't want to import dask, but we can still work-around how to 
     # check its type without isinstance()
@@ -482,6 +507,25 @@ def writeMRC( input_image, MRCfilename, meta=None, endian='le', dtype=None,
         # Ideally it would be faster to iterate over the chunks and pass each one 
         # to blosc but that likely requires c-blosc2
         input_image = input_image.__array__()
+        dims = input_image.shape
+
+    if isinstance(input_image, (tuple,list)):
+        asList = True
+        dims = np.array( [len(input_image), *input_image[0].shape])
+        if dims.size != 3:
+            raise ValueError( "List of arrays must have 2D arrays as elements" )
+
+        # Verify that each image in the list is the same 2D shape and dtype
+        for z_slice in input_image:
+            assert( np.all(z_slice.shape == dims[1:]) )
+            assert( z_slice.dtype == input_image[0].dtype )
+
+    else: # Array-'like' object
+        asList = False
+        dims = input_image.shape
+        if len( input_image.shape ) == 2:
+            # If it's a 2D image we force it to 3D - this makes life easier later:
+            input_image = input_image.reshape( ( 1, input_image.shape[0], input_image.shape[1] ) )
 
     # We will need this regardless if writing to an existing file or not:
     if endian == 'le':
@@ -507,8 +551,10 @@ def writeMRC( input_image, MRCfilename, meta=None, endian='le', dtype=None,
             
         header = {'meta': meta }
         if dtype == None:
-            # TODO: endian support
-            header['dtype'] = endchar + input_image.dtype.descr[0][1].strip( '<>|' )
+            if asList:
+                header['dtype'] = endchar + input_image[0].dtype.descr[0][1].strip( '<>|' )
+            else:
+                header['dtype'] = endchar + input_image.dtype.descr[0][1].strip( '<>|' )
         else:
             header['dtype'] = dtype
             
@@ -516,7 +562,7 @@ def writeMRC( input_image, MRCfilename, meta=None, endian='le', dtype=None,
         if not header['dtype'].strip( '<>|' ) in REVERSE_CCPEM_ENUM:
             raise TypeError( 'ioMRC.MRCExport: Unsupported dtype cast for MRC %s' % header['dtype'] )
             
-        header['dimensions'] = input_image.shape
+        header['dimensions'] = dims
         
         header['pixelsize'] = pixelsize
         header['pixelunits'] = pixelunits
@@ -526,14 +572,25 @@ def writeMRC( input_image, MRCfilename, meta=None, endian='le', dtype=None,
         
         # This overhead calculation is annoying but many 3rd party tools that use 
         # MRC require these statistical parameters.
-        if bool(quickStats) and input_image.ndim == 3:
-            header['maxImage'] = np.max( np.real( input_image[0,:,:] ) )
-            header['minImage'] = np.min( np.real( input_image[0,:,:] ) )
-            header['meanImage'] = np.mean( np.real( input_image[0,:,:] ) )
+        if bool(quickStats):
+            if asList:
+                first_image = input_image[0]
+            else:
+                first_image = input_image[0,:,:]
+
+            imMin = first_image.real.min(); imMax = first_image.real.max()
+            header['maxImage'] = imMax
+            header['minImage'] =  imMin
+            header['meanImage'] = 0.5*(imMax + imMin)
         else:
-            header['maxImage'] = np.max( np.real( input_image ) )
-            header['minImage'] = np.min( np.real( input_image ) )
-            header['meanImage'] = np.mean( np.real( input_image ) )
+            if asList:
+                header['maxImage'] = np.max( [z_slice.real.max() for z_slice in input_image] )
+                header['minImage'] = np.min( [z_slice.real.min() for z_slice in input_image] )
+                header['meanImage'] = np.mean( [z_slice.real.mean() for z_slice in input_image] )
+            else:
+                header['maxImage'] = input_image.real.max()
+                header['minImage'] = input_image.real.min()
+                header['meanImage'] = input_image.real.mean()
         
         header['voltage'] = voltage
         if not bool( header['voltage'] ):
@@ -554,13 +611,13 @@ def writeMRC( input_image, MRCfilename, meta=None, endian='le', dtype=None,
         # TODO: can we detect the number of cores without adding a heavy dependancy?
         
         if dtype == 'uint4':
+            if asList:
+                raise NotImplementedError('Saving of lists of arrays not supported for `dtype=uint4`')
             # Decimate to packed 4-bit
             input_image = input_image.astype('uint8')
             input_image = input_image[:,:,::2] + np.left_shift(input_image[:,:,1::2],4)
 
-    else:
-    # We are going to append to an already existing file:
-
+    else: # We are going to append to an already existing file:
         # So we try to figure out its header with 'CCPEM' or 'eman2' file conventions:
         try:
             header = readMRCHeader( MRCfilename, endian, fileConvention = 'CCPEM', pixelunits=pixelunits )
@@ -615,27 +672,25 @@ def writeMRC( input_image, MRCfilename, meta=None, endian='le', dtype=None,
     else:
         offset = 0
         
-    __MRCExport( input_image, header, MRCfilename, endchar, offset, idxnewfile )
+    __MRCExport(input_image, header, MRCfilename, endchar, offset, idxnewfile, asList=asList)
  
         
-def __MRCExport( input_image, header, MRCfilename, endchar = '<', offset = 0, idxnewfile = True ):
+def __MRCExport(input_image, header, MRCfilename, endchar='<', offset=0, idxnewfile=True, asList=False):
     '''
     MRCExport private interface with a dictionary rather than a mess of function 
     arguments.
     '''
 
-    if idxnewfile:
-        # If forcing a new file we truncate it even if it already exists:
+    if idxnewfile: # If forcing a new file we truncate it even if it already exists:
         fmode = 'wb'
-
-    else:
-        # Otherwise we'll just update its header and append images as required:
+    else: # Otherwise we'll just update its header and append images as required:
         fmode = 'rb+'
 
-    with open( MRCfilename, fmode, buffering=BUFFERSIZE ) as f:
-        extendedBytes = writeMRCHeader( f, header, endchar )
+    with open(MRCfilename, fmode, buffering=BUFFERSIZE) as f:
+        extendedBytes = writeMRCHeader(f, header, endchar)
         f.seek(DEFAULT_HEADER_LEN + extendedBytes + offset)
-        
+
+        dtype = header['dtype']
         if ('compressor' in header) \
                 and (header['compressor'] in REVERSE_COMPRESSOR_ENUM) \
                 and (REVERSE_COMPRESSOR_ENUM[header['compressor']]) > 0:
@@ -643,34 +698,56 @@ def __MRCExport( input_image, header, MRCfilename, endchar = '<', offset = 0, id
             logger.info( 'Compressing %s with compressor %s%d' %
                     (MRCfilename, header['compressor'], header['clevel'] ) )
             
-            if header['dtype'] != 'uint4' and input_image.dtype != header['dtype']:
-                # This correctly works for text to dtype comparison
-                input_image = input_image.astype(header['dtype']) 
-                
-            if input_image.ndim == 3:
-                chunkSize = input_image[0,:,:].size
+
+            applyCast = False
+            if asList:
+                chunkSize = input_image[0].size
+                typeSize = input_image[0].dtype.itemsize
+                if dtype != 'uint4' and input_image[0].dtype != dtype: applyCast = True
             else:
-                chunkSize = input_image.size
-                input_image = np.reshape( input_image, [1,input_image.shape[0],input_image.shape[1] ])
+                chunkSize = input_image[0,:,:].size
+                typeSize = input_image.dtype.itemsize
+                if dtype != 'uint4' and input_image.dtype != dtype: applyCast = True
                 
             blosc.set_nthreads( header['n_threads'] )
             blosc.set_blocksize( BLOSC_BLOCK )
             
             header['packedBytes'] = 0
-            typeSize = input_image.dtype.itemsize
             
-            for J in np.arange( input_image.shape[0] ):
+            zCount = len(input_image) if asList else input_image.shape[0]
+            for J in range( zCount ):
                 # print( 'Slice %d: Compressing address at: %d of %d:' % (J, int(J*typeSize*blockSize), input_image.nbytes) )
                 
-                # Looks like I have problem for typesize > 1?
-                if int(J*typeSize*chunkSize) >= input_image.nbytes:
-                    raise MemoryError( 'MRCExport: Tried to reference past end of ndarray %d > %d' % (int(J*typeSize*chunkSize), input_image.nbytes ) )
+                # # Looks like I have problem for typesize > 1?
+                # if int(J*typeSize*chunkSize) >= input_image.nbytes:
+                #     raise MemoryError( 'MRCExport: Tried to reference past end of ndarray %d > %d' % (int(J*typeSize*chunkSize), input_image.nbytes ) )
                     
-                compressedData = blosc.compress( input_image[J,:,:].tobytes(),
-                            typeSize, 
-                            clevel=header['clevel'], 
-                            shuffle=blosc.BITSHUFFLE,
-                            cname=header['compressor'] )
+                if asList:
+                    if applyCast:
+                        compressedData = blosc.compress( input_image[J].astype(dtype).tobytes(),
+                                    typeSize, 
+                                    clevel=header['clevel'], 
+                                    shuffle=blosc.BITSHUFFLE,
+                                    cname=header['compressor'] )
+                    else:
+                        compressedData = blosc.compress( input_image[J].tobytes(),
+                                    typeSize, 
+                                    clevel=header['clevel'], 
+                                    shuffle=blosc.BITSHUFFLE,
+                                    cname=header['compressor'] )
+                else: # Array-like
+                    if applyCast:
+                        compressedData = blosc.compress( input_image[J,:,:].astype(dtype).tobytes(),
+                                    typeSize, 
+                                    clevel=header['clevel'], 
+                                    shuffle=blosc.BITSHUFFLE,
+                                    cname=header['compressor'] )
+                    else:
+                        compressedData = blosc.compress( input_image[J,:,:].tobytes(),
+                                    typeSize, 
+                                    clevel=header['clevel'], 
+                                    shuffle=blosc.BITSHUFFLE,
+                                    cname=header['compressor'] )
                 f.write( compressedData )
                     
                 header['packedBytes'] += len(compressedData)
@@ -681,9 +758,16 @@ def __MRCExport( input_image, header, MRCfilename, endchar = '<', offset = 0, id
 
             
         else: # vanilla MRC
-            if header['dtype'] != 'uint4' and input_image.dtype != header['dtype']:
-                input_image = input_image.astype( header['dtype'] )
-            input_image.tofile(f)
+            
+            if asList: 
+                if dtype != 'uint4' and dtype != input_image.dtype:
+                    [z_slice.astype(dtype).tofile(f) for z_slice in input_image]
+                else:
+                    [z_slice.tofile(f) for z_slice in input_image]
+            else:
+                if dtype != 'uint4' and dtype != input_image.dtype:
+                    input_image = input_image.astype(dtype)
+                input_image.tofile(f)
             
             
     return 
@@ -760,7 +844,7 @@ def writeMRCHeader( f, header, endchar = '<' ):
         cellsize = np.array( [AApixelsize,AApixelsize,AApixelsize]  ) * dimensions
     elif len(AApixelsize) == 2:
         # Default to z-axis pixelsize of 10.0 Angstroms
-        cellsize = np.flipud(np.array( [AApixelsize[0], AApixelsize[1], 10.0] )) * dimensions
+        cellsize = np.flipud(np.array( [10.0, AApixelsize[0], AApixelsize[1]] )) * dimensions
     else:
         cellsize = np.flipud(np.array( AApixelsize )) *  dimensions
         

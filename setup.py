@@ -20,7 +20,7 @@ def exit_with_error(message):
     sys.exit(1)
 
 # Setup requirements
-requires = ['numpy', 'setuptools', 'blosc']
+requires = ['numpy', 'setuptools' ]
 
 # Check for Python
 if sys.version_info[0] == 2:
@@ -41,7 +41,7 @@ else:
 #### MRCZ version ####
 major_ver = 0
 minor_ver = 3
-nano_ver = 1
+nano_ver = 2
 branch = ''
 
 VERSION = "%d.%d.%d%s" % (major_ver, minor_ver, nano_ver, branch)

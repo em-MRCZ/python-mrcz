@@ -1,8 +1,18 @@
+0.3.2
+-----
+
+* Made `blosc` an optional dependency due to difficulties involved in building
+  wheels for PyPi.
+* Implemented reading/writing of `list` of equally-shaped 2D `ndarray`s instead of 
+  a single 3D `ndarray`, where the `list` represents the Z-axis. This approach 
+  can be helpful for larger arrays that do not have to be continuous as the 
+  operating system can more easily interleave them into memory.
+
 0.3.1
 -----
 
-Added ascii identifier label 'MRCZ' + <__version__> to the labels.  I.e. at 
-byte 224 in the header will appear b'MRCZ0.3.1'
+* Added ascii identifier label 'MRCZ' + <__version__> to the labels.  I.e. at 
+  byte 224 in the header will appear b'MRCZ0.3.1'
 
 0.3.0
 -----
