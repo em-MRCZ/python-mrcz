@@ -21,10 +21,12 @@ import os, os.path, sys
 import numpy as np
 import threading
 import struct
-if sys.version_info > (3,0):
+try:
     from concurrent.futures import ThreadPoolExecutor
-else:
-    from futures import ThreadPoolExecutor
+except ImportError as e:
+    if sys.version_info > (3,0):
+        raise ImportError('Get the backport for `concurrent.futures` for Py2.7 as `pip install futures`')
+    raise e
 from mrcz.__version__ import __version__
 
 import logging
