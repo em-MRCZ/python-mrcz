@@ -41,6 +41,7 @@ install:
 
   # Install the build and runtime dependencies of the project.
   - "%CMD_IN_ENV% pip install --timeout=60 -r requirements.txt wheel"
+  - "%CMD_IN_ENV% pip install --timeout=60 -r optional-requirements.txt wheel"
   - "%CMD_IN_ENV% python setup.py bdist_wheel bdist_wininst"
 
   # Install the genreated wheel package to test it
