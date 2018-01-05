@@ -1,3 +1,8 @@
+0.3.3
+-----
+
+* Removed use of star-expansion of args as it breaks Python 2.7/3.4.
+
 0.3.2
 -----
 

@@ -31,6 +31,6 @@ script:
   - python -c "import sys; import mrcz; sys.exit(0 if mrcz.test().wasSuccessful() else 1)"
 
 notifications:
-  email: false
+  email: true
 
 

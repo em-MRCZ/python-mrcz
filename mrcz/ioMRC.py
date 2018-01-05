@@ -511,9 +511,9 @@ def writeMRC( input_image, MRCfilename, meta=None, endian='le', dtype=None,
 
     if isinstance(input_image, (tuple,list)):
         asList = True
-        dims = np.array( [len(input_image), *input_image[0].shape])
-        if dims.size != 3:
+        if input_image[0].ndim != 2:
             raise ValueError( "List of arrays must have 2D arrays as elements" )
+        dims = np.array( [len(input_image), input_image[0].shape[0], input_image[0].shape[1]])
 
         # Verify that each image in the list is the same 2D shape and dtype
         for z_slice in input_image:
