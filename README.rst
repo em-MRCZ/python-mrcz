@@ -48,7 +48,9 @@ See AUTHORS.txt.
 Citations
 ---------
 
-* A publication detailing the performance of MRCZ is currently 'in-press'.
+* R.A. McLeod, R. Diogo-Righetto, A. Stewart, H. Stahlberg, "MRCZ – A file 
+  format for cryo-TEM data with fast compression," Journal of Structural Biology,
+  In Press, https://doi.org/10.1016/j.jsb.2017.11.012
 * A. Cheng et al., "MRC2014: Extensions to the MRC format header for electron 
   cryo-microscopy and tomography", Journal of Structural Biology 192(2): 146-150, 
   November 2015, http://dx.doi.org/10.1016/j.jsb.2015.04.002
