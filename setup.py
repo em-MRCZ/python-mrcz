@@ -41,7 +41,7 @@ else:
 #### MRCZ version ####
 major_ver = 0
 minor_ver = 3
-nano_ver = 3
+nano_ver = 4
 branch = ''
 
 VERSION = "%d.%d.%d%s" % (major_ver, minor_ver, nano_ver, branch)
@@ -50,7 +50,7 @@ open('mrcz/__version__.py', 'w').write('__version__ = "%s"\n' % VERSION)
 
 # Global variables
 classifiers = """\
-Development Status :: 3 - Alpha
+Development Status :: 4 - Beta
 Intended Audience :: Developers
 Intended Audience :: Information Technology
 Intended Audience :: Science/Research

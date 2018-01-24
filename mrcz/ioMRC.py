@@ -58,12 +58,14 @@ COMPRESSOR_ENUM = { 0:None, 1:'blosclz', 2:'lz4', 3:'lz4hc', 4:'snappy', 5:'zlib
 REVERSE_COMPRESSOR_ENUM = { None:0, 'blosclz':1, 'lz4':2, 'lz4hc':2, 'snappy':4, 'zlib':5, 'zstd':6 }
 
 MRC_COMP_RATIO = 1000  
-CCPEM_ENUM = { 0: 'i1', 1:'i2', 2:'f4', 4:'c8', 6:'u2', 101:'u1' }
+CCPEM_ENUM = { 0: 'i1', 1:'i2', 2:'f4', 4:'c8', 6:'u2', 7:'i4', 8:'u4', 101:'u1' }
 EMAN2_ENUM = { 1: 'i1', 2:'u1', 3:'i2', 4:'u2', 5:'i4', 6:'u4', 7:'f4' }
-REVERSE_CCPEM_ENUM = { 'int8':0, 'i1':0, 
+REVERSE_CCPEM_ENUM = {'int8':0, 'i1':0, 
                       'uint4':101, 
                       'int16':1, 'i2':1,
                       'uint16':6, 'u2':6,
+                      'int32':7, 'i4':7,
+                      'uint32': 8, 'u4':8,
                       'float64':2, 'f8':2, 'float32':2, 'f4':2,
                       'complex128':4, 'c16':4, 'complex64':4, 'c8':4 }
 
@@ -911,8 +913,11 @@ def writeMRCHeader( f, header, endchar = '<' ):
             # Sanitize types that `python-rapidjson` and `json` don't understand.
             # Should we make a copy of `meta` in this case?  We are modifying 
             # the passed data.
-            if type(value) == np.ndarray:
+            if hasattr(value, '__array_interface__'):
+                # Checking for '__array_interface__' also sanitises numpy scalars
+                # like np.float32 or np.int32
                 header['meta'][key] = value.tolist()
+
                 
         jsonMeta = json.dumps( header['meta'] ).encode('utf-8')
         jsonLen = len(jsonMeta)

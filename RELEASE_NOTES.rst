@@ -1,3 +1,13 @@
+0.3.4
+-----
+
+* Add (temporarily) MRC types for `uint32` and `int32` to support 24-bit detectors.
+  May break in the future, as the CCP-EM committee should make the final decision
+  on such enumerations.
+* Added handling of NumPy scalars (i.e. `np.float32(1.0)`) in metadata so that 
+  JSON serialization does not generate errors. Values will be case to Python 
+  `int` or `float` as appropriate.
+
 0.3.3
 -----
 
