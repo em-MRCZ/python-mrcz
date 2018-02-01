@@ -33,12 +33,12 @@ import logging
 logger = logging.getLogger('MRCZ')
 try: 
     import blosc
-    bloscPresent = True
+    BLOSC_PRESENT = True
     # For async operations we want to release the GIL in blosc operations and 
     # file IO operations.
     blosc.set_releasegil(True)
-except:
-    bloscPresent = False
+except: # Can be ImportError or ModuleNotFoundError depending on the Python version
+    BLOSC_PRESENT = False
     logger.info( '`blosc` meta-compression library not found, file compression disabled.' )
 try: 
     import rapidjson as json
@@ -128,7 +128,7 @@ def defaultHeader():
     header['C3'] = 2.7 # mm
     header['gain'] = 1.0 # counts/electron
     
-    if bloscPresent:
+    if BLOSC_PRESENT:
         header['n_threads'] = blosc.detect_number_of_cores()
     
     return header
@@ -268,9 +268,8 @@ def __MRCZImport( f, header, endian='le', fileConvention='ccpem',
     
     Memory mapping is not possible in this case at present.  
     '''
-    if not bloscPresent:
-        logger.error( 'blosc not present, cannot compress files.' )
-        return
+    if not BLOSC_PRESENT:
+        raise ImportError( '`blosc` is not installed, cannot decompress file.' )
         
     if n_threads == None:
         blosc.nthreads = blosc.detect_number_of_cores()
@@ -502,6 +501,8 @@ def writeMRC( input_image, MRCfilename, meta=None, endian='le', dtype=None,
     *Note: MRC definitions are not consistent. Generally we support the CCPEM schema.*
     '''
 
+    if not BLOSC_PRESENT and compressor is not None:
+        raise ImportError('`blosc` is not installed, cannot use file compression.')
 
 
     # For dask, we don't want to import dask, but we can still work-around how to 
@@ -608,7 +609,7 @@ def writeMRC( input_image, MRCfilename, meta=None, endian='le', dtype=None,
         
         header['compressor'] = compressor
         header['clevel'] = clevel
-        if n_threads == None and bloscPresent:
+        if n_threads == None and BLOSC_PRESENT:
             n_threads = blosc.detect_number_of_cores()
         header['n_threads'] = n_threads
         
