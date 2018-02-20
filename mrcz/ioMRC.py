@@ -3,15 +3,12 @@ from __future__ import division, print_function, absolute_import, unicode_litera
 Conventional MRC2014 and on-the-fly compressed MRCZ file interface
 
 CCPEM MRC2014 specification:
-
 http://www.ccpem.ac.uk/mrc_format/mrc2014.php
 
 IMOD specification:
-
 http://bio3d.colorado.edu/imod/doc/mrc_format.txt
 
 Testing:
-
 http://emportal.nysbc.org/mrc2014/
 
 Tested output on: Gatan GMS, IMOD, Chimera, Relion, MotionCorr, UnBlur
@@ -37,7 +34,9 @@ try:
     # For async operations we want to release the GIL in blosc operations and 
     # file IO operations.
     blosc.set_releasegil(True)
-except: # Can be ImportError or ModuleNotFoundError depending on the Python version
+except ImportError: 
+    # Can be ImportError or ModuleNotFoundError depending on the Python version,
+    # but ModuleNotFoundError is a child of ImportError and is still caught.
     BLOSC_PRESENT = False
     logger.info( '`blosc` meta-compression library not found, file compression disabled.' )
 try: 
@@ -70,11 +69,9 @@ REVERSE_CCPEM_ENUM = {'int8':0, 'i1':0,
                       'complex128':4, 'c16':4, 'complex64':4, 'c8':4 }
 
 
-_asyncExecutor = ThreadPoolExecutor( max_workers = 1 )
-def _setAsyncWorkers( N_workers ):
+_asyncExecutor = ThreadPoolExecutor(max_workers = 1)
+def _setAsyncWorkers(N_workers):
     '''
-    _setAsyncWorkers( N_workers )
-
     *This function is protected as there appears to be little value in using more 
     than one worker. It may be subject to removal in the future.*
 
@@ -91,10 +88,13 @@ def _setAsyncWorkers( N_workers ):
         HD, 4 workers:  50.4 s
         SSD, 1 worker:  12.6 s
         SSD, 2 workers: 11.6 s
-        SSD, 4 workers: 8.9 s
+        SSD, 4 workers:  8.9 s
         SSD, 8 workers: 16.9 s
 
-    In g
+    Parameters
+    ----------
+    N_workers: int
+        The number of threads for asynchronous reading and writing to disk
     '''
     if N_workers <= 0:
         raise ValueError('N_workers must be greater than 0')
@@ -105,7 +105,13 @@ def _setAsyncWorkers( N_workers ):
 
 def defaultHeader():
     '''
-    Returns a default MRC header dictionary with all fields with default values.
+    Generator function to create a metadata header dictionary with the relevant
+    fields.
+
+    Returns
+    -------
+    header
+        a default MRC header dictionary with all fields with default values.
     '''
     header = {}
     header['fileConvention'] = 'ccpem'
@@ -134,44 +140,55 @@ def defaultHeader():
     return header
     
     
-def readMRC( MRCfilename, idx=None, endian='le', 
-              pixelunits=u'\\AA', fileConvention='ccpem', 
-              useMemmap=False, n_threads=None, asList=False ):
+def readMRC(MRCfilename, idx=None, endian='le', 
+            pixelunits=u'\\AA', fileConvention='ccpem', 
+            useMemmap=False, n_threads=None, asList=False):
     '''
-    readMRC( MRCfilename, idx=None, endian='le', 
-              pixelunits=u'\\AA', fileConvention='ccpem', 
-              useMemmap=False, n_threads=None, asList=False )
-    
     Imports an MRC/Z file as a NumPy array and a meta-data dict.  
     
-    Usage::
-        
+    Parameters
+    ----------
+    image: numpy.ndarray
+        a 1-3 dimension ``numpy.ndarray`` with one of the supported data types in 
+        ``mrcz.REVERSE_CCPEM_ENUM``
+    meta: dict
+        a ``dict`` with various fields relating to the MRC header information. 
+        Can also hold arbitrary meta-data, but the use of large numerical data 
+        is not recommended as it is encoded as text via JSON.
+    idx: Tuple[int]
+        Index tuple ``(first, last)`` where first (inclusive) and last (not 
+        inclusive) indices of images to be read from the stack. Index of first image 
+        is 0. Negative indices can be used to count backwards. A singleton integer 
+        can be provided to read only one image. If omitted, will read whole file. 
+        Compression is currently not supported with this option.
+    pixelunits: str
+        can be ``'AA' (Angstoms), 'nm', '\mum', or 'pm'``.  Internally pixel 
+        sizes are always encoded in Angstroms in the MRC file.
+    fileConvention: str 
+        can be ``'ccpem'`` (equivalent to IMOD) or ``'eman2'``, which is
+        only partially supported at present.
+    endian: str
+        can be big-endian as ``'be'`` or little-endian as ``'le'``. Defaults 
+        to `'le'` as the vast majority of modern computers are little-endian.
+    n_threads: int 
+        is the number of threads to use for decompression, defaults to 
+        use all virtual cores.
+    useMemmap: bool = True
+        returns a ``numpy.memmap`` instead of a ``numpy.ndarray``. Not recommended.
+    asList: bool = True 
+        returns a `list` of 2D NumPy arrays, with the list indices representing 
+        the Z-axis. Since the data is non-contiguous, very large arrays can fit 
+        more easily into memory. Ignored if ``useMemmap=True``.
+
+    Returns
+    -------
+    ``None``
+
+    Example
+    -------
         [image, meta] = readMRC( MRCfilename, idx=None, endian='le', 
               pixelunits=u'\\AA', fileConvention = 'ccpem', 
-              useMemmap=False, n_threads = None, asList=False  ):
-    
-    * ``image`` is a NumPy array.
-    * ``meta`` is a dict with various fields relating to the MRC header information 
-      and extended metadata.
-    * ``idx = (first, last)`` is a tuple with first (inclusive) and last (not 
-      inclusive) indices of images to be read from the stack. Index of first image 
-      is 0. Negative indices can be used to count backwards. A singleton integer 
-      can be provided to read only one image. If omitted, will read whole file. 
-      Compression is currently not supported with this option.
-    * ``pixelunits`` can be ``'AA' (Angstoms), 'nm', '\mum', or 'pm'``.  Internally pixel 
-      sizes are always encoded in Angstroms in the MRC file.
-    * ``fileConvention`` can be ``'ccpem'`` (equivalent to IMOD) or ``'eman2'``, which is
-      only partially supported at present.
-    * ``endian`` can be big-endian as ``'be'`` or little-endian as ``'le'``. Defaults 
-      to `'le'` as the vast majority of modern computers are little-endian.
-    * ``n_threads`` is the number of threads to use for decompression, defaults to 
-       use all virtual cores.
-    * ``useMemmap=True`` returns a ``numpy.memmap`` instead of a ``numpy.ndarray``
-    * ``asList=True`` returns a `list` of 2D NumPy arrays, with the list indices 
-      representing the Z-axis. Since the data is non-contigious, very large 
-      arrays can fit more easily into memory. Ignored if ``useMemmap=True``.
-
-
+              useMemmap=False, n_threads = None, asList=False)
     '''
 
     with open(MRCfilename, 'rb', buffering=BUFFERSIZE) as f:
@@ -256,16 +273,13 @@ def readMRC( MRCfilename, idx=None, endian='le',
         return image, header
 
        
-def __MRCZImport( f, header, endian='le', fileConvention='ccpem', 
-        returnHeader=False, n_threads=None, asList=False ):
+def __MRCZImport(f, header, endian='le', fileConvention='ccpem', 
+                 returnHeader=False, n_threads=None, asList=False):
     '''
     Equivalent to MRCImport, but for compressed data using the blosc library.
     
-    The following compressors are supported: 
-        ``'zlib'``
-        ``'zstd'``
-        ``'lz4'``
-    
+    The following compressors are recommended: [``'zlib'``, ``'zstd'``, ``'lz4'``]
+        
     Memory mapping is not possible in this case at present.  
     '''
     if not BLOSC_PRESENT:
@@ -319,8 +333,7 @@ def __MRCZImport( f, header, endian='le', fileConvention='ccpem',
     return image, header
     
 
-    
-def readBloscHeader( filehandle ):
+def readBloscHeader(filehandle):
     '''
     Reads in the 16 byte header file from a blosc chunk. Blosc header format 
     for each chunk is as follows::
@@ -333,16 +346,26 @@ def readBloscHeader( filehandle ):
         |   +----------versionlz
         +--------------version
     '''
-    # Probably 
     [version, versionlz, flags, typesize] = np.fromfile( filehandle, dtype='uint8', count=4 )
     [nbytes, blocksize, ctbytes] = np.fromfile( filehandle, dtype='uint32', count=3 )
     return ( [nbytes, blocksize, ctbytes], [version, versionlz, flags, typesize] )
     
     
-def readMRCHeader( MRCfilename, endian='le', fileConvention = 'ccpem', pixelunits=u'\\AA' ):
+def readMRCHeader(MRCfilename, endian='le', fileConvention = 'ccpem', pixelunits=u'\\AA'):
     '''
-    Reads in the first 1024 bytes from an MRC file and parses it into a Python dictionary, yielding 
-    header information.
+    Reads in the first 1024 bytes from an MRC file and parses it into a Python 
+    dictionary, yielding header information. This function is not intended to be 
+    called by the user under typical usage.
+
+    Parameters
+    ----------
+    As per `readMRC`
+
+    Returns
+    -------
+    header: dict
+        All found meta-data in the header and extended header packaged into 
+        a dictionary.
     '''
     if endian == 'le':
         endchar = '<'
@@ -372,13 +395,6 @@ def readMRCHeader( MRCfilename, endian='le', fileConvention = 'ccpem', pixelunit
         logger.info( 'compressor: %s, MRCtype: %s' % (str(header['compressor']),str(header['MRCtype'])) )
         
         fileConvention = fileConvention.lower()
-        # if fileConvention == 'ccpem':
-        #     diagStr += ('ioMRC.readMRCHeader: MRCtype: %s, compressor: %s, dimensions %s' % 
-        #         (CCPEM_ENUM[header['MRCtype']],header['compressor'], header['dimensions'] ) )
-        # elif fileConvention == 'eman2':
-        #     diagStr += ( 'ioMRC.readMRCHeader: MRCtype: %s, compressor: %s, dimensions %s' % 
-        #         (EMAN2_ENUM[header['MRCtype']],header['compressor'], header['dimensions'] ) )
-
         
         if fileConvention == 'eman2':
             try:
@@ -440,8 +456,6 @@ def readMRCHeader( MRCfilename, endian='le', fileConvention = 'ccpem', pixelunit
         header['C3']  = np.fromfile( f, dtype=endchar + 'f4', count=1 )
         header['gain']  = np.fromfile( f, dtype=endchar + 'f4', count=1 )
         
-        #diagStr += ', voltage: %.1f, C3: %.2f, gain: %.2f' % (header['voltage'], header['C3'], header['gain']) 
-
         # Read in size of packed data
         f.seek(144)
         # Have to convert to Python int to avoid index warning.
@@ -449,61 +463,84 @@ def readMRCHeader( MRCfilename, endian='le', fileConvention = 'ccpem', pixelunit
         # header['packedBytes'] = int( np.fromfile( f, dtype=endchar + 'i8', count=1) )
         # if header['packedBytes'] > 0:
         #     diagStr += ', packedBytes: %d' % header['packedBytes']
-        
-        
 
-        # How many bytes in an MRC
         return header
         
-def writeMRC( input_image, MRCfilename, meta=None, endian='le', dtype=None, 
-               pixelsize=[0.1,0.1,0.1], pixelunits=u'\\AA', shape=None, 
-               voltage=0.0, C3=0.0, gain=1.0,
-               compressor=None, clevel = 1, n_threads=None, quickStats=True, idx = None ):
+def writeMRC(input_image, MRCfilename, meta=None, endian='le', dtype=None, 
+             pixelsize=[0.1,0.1,0.1], pixelunits=u'\\AA', shape=None, 
+             voltage=0.0, C3=0.0, gain=1.0, compressor=None, clevel=1, 
+             n_threads=None, quickStats=True, idx=None):
     '''
-    writeMRC( input_image, MRCfilename, meta=None, idx=None, 
-               endian='le', dtype=None, 
-               pixelsize=[0.1,0.1,0.1], pixelunits=u'\\AA', shape=None, 
-               voltage=0.0, C3=0.0, gain=1.0,
-               compressor=None, clevel=1, n_threads=None, quickStats=True, 
-               )
-    
-    Given a ``numpy`` 2-D or 3-D array ``input_image`` write it has an MRC file ``MRCfilename``.
+    Write a conventional MRC file, or a compressed MRCZ file to disk.  If 
+    compressor is ``None``, then backwards compatibility with other MRC libraries
+    should be preserved.  Other libraries will not, however, recognize 
+    the JSON extended meta-data.
 
-    * ``meta`` is a Python dict{} which will be serialized by JSON and written 
-        into the extended header.
-    * ``dtype`` will cast the data before writing it.
-    * ``pixelsize`` is [z,y,x] pixel size (singleton values are ok for square/cubic pixels)
-    * ``pixelunits`` is ``'\\AA'`` for Angstroms, ``'pm'`` for picometers, ``'\mum'`` for micrometers, 
-      or ``'nm'`` for nanometers.  MRC standard is always Angstroms, so pixelsize 
-      is converted internally from nm to Angstroms if necessary
-    * ``shape`` is only used if you want to later append to the file, such as 
-      merging together Relion particles for Frealign.  Not recommended and 
-      only present for legacy reasons.
-    * ``voltage`` is accelerating potential in keV, defaults to 300.0
-    * ``C3`` is spherical aberration in mm, defaults to 2.7 mm
-    * ``gain`` is detector gain (counts/primary electron), defaults to 1.0 (for counting camera)
-    * ``compressor`` is a choice of ``'lz4'``, ``'zlib'``, or ``'zstd'``, plus ``'blosclz'``, ``'lz4hc'`` 
+    Parameters
+    ----------
+    input_image: Union[numpy.ndarray, list[numpy.ndarray]]
+        The image data to write, should be a 1-3 dimension ``numpy.ndarray`` 
+        or a list of 2-dimensional ``numpy.ndarray``s.
+    meta: dict
+         will be serialized by JSON and written into the extended header. Note 
+         that ``rapidjson`` (the default) or ``json`` (the fallback) cannot 
+         serialize all Python objects, so sanitizing ``meta`` to remove non-standard
+         library data structures is advisable, including ``numpy.ndarray`` values.
+    dtype: Union[numpy.dtype, str]
+        will cast the data before writing it.
+    pixelsize: Tuple[x,y,z]
+        is [z,y,x] pixel size (singleton values are ok for square/cubic pixels)
+    pixelunits: str = u'\\AA'
+        one of 
+        - ``'\\AA'`` for Angstroms
+        - ``'pm'`` for picometers
+        - ``'\mum'`` for micrometers
+        - ``'nm'`` for nanometers. 
+        MRC standard is always Angstroms, so pixelsize is converted internally 
+        from nm to Angstroms as needed.
+    shape: Optional[Tuple[int]]
+        is only used if you want to later append to the file, such as 
+        merging together Relion particles for Frealign.  Not recommended and 
+        only present for legacy reasons.
+    voltage: float = 300.0
+        accelerating potential in keV
+    C3: float = 2.7
+        spherical aberration in mm
+    gain: float = 1.0
+        detector gain in units (counts/primary electron)
+    compressor: str = None
+        is a choice of ``'lz4', 'zlib', 'zstd'``, plus ``'blosclz'``, ``'lz4hc'`` 
         - ``'lz4'`` is  generally the fastest.
         - ``'zstd'`` generally gives the best compression performance, and is still almost 
-        as fast as 'lz4' with clevel = 1
-    * ``clevel`` is the compression level, 1 is fastest, 9 is slowest.  The compression
-      ratio will rise slowly with clevel.
-    * ``n_threads`` is number of threads to use for blosc compression
-    * ``quickStats=True`` estimates the image mean, min, max from the first frame only,
-      which saves a lot of computational time for stacks.
-    * ``idx`` can be used to write an image or set of images starting at a 
-      specific position in the MRC file (which may already exist). Index of 
-      first image is 0. A negative index can be used to count backwards. If 
-      omitted, will write whole stack to file. If writing to an existing 
-      file, compression or extended MRC2014 headers are currently not 
-      supported with this option.
-    
-    *Note: MRC definitions are not consistent. Generally we support the CCPEM schema.*
+          as fast as 'lz4' with clevel = 1
+    clevel: int = 1
+        the compression level, 1 is fastest, 9 is slowest.  The compression ratio 
+        will rise slowly with clevel.
+    n_threads: int = None
+        number of threads to use for blosc compression.  Defaults to number of 
+        virtual cores if ``== None``.
+    quickStats: bool = True
+        estimates the image mean, min, max from the first frame only, which 
+        saves computational time for image stacks.
+    idx 
+        can be used to write an image or set of images starting at a specific 
+        position in the MRC file (which may already exist). Index of first image 
+        is 0. A negative index can be used to count backwards. If omitted, will 
+        write whole stack to file. If writing to an existing file, compression 
+        or extended MRC2014 headers are currently not supported with this option.
+
+    Returns
+    -------
+    ``None``
+
+    Warning
+    -------
+    MRC definitions are not consistent. Generally we support the CCPEM2014 schema
+    as much as possible.
     '''
 
     if not BLOSC_PRESENT and compressor is not None:
         raise ImportError('`blosc` is not installed, cannot use file compression.')
-
 
     # For dask, we don't want to import dask, but we can still work-around how to 
     # check its type without isinstance()
@@ -634,11 +671,6 @@ def writeMRC( input_image, MRCfilename, meta=None, endian='le', dtype=None,
             # If neither 'CCPEM' nor 'eman2' formats satisfy:
                 raise ValueError( 'Error: unrecognized MRC type for file: %s ' % MRCfilename )
 
-        # No support for extended headers in arbitrary appending mode:
-        # RAM: should work now
-        # if header['extendedBytes'] > 0:
-        #     raise ValueError( 'Error: MRC2014 files with extended headers not supported for writing: %s = %d' % ('extendedBytes', header['extendedBytes'] ) )
-
         # If the file already exists, its X,Y dimensions must be consistent with the current image to be written:
         if np.any( header['dimensions'][1:] != input_image.shape[1:] ):
             raise ValueError( 'Error: x,y dimensions of image do not match that of MRC file: %s ' % MRCfilename )
@@ -680,7 +712,8 @@ def writeMRC( input_image, MRCfilename, meta=None, endian='le', dtype=None,
     __MRCExport(input_image, header, MRCfilename, endchar, offset, idxnewfile, asList=asList)
  
         
-def __MRCExport(input_image, header, MRCfilename, endchar='<', offset=0, idxnewfile=True, asList=False):
+def __MRCExport(input_image, header, MRCfilename, endchar='<', offset=0, 
+                idxnewfile=True, asList=False):
     '''
     MRCExport private interface with a dictionary rather than a mess of function 
     arguments.
@@ -721,13 +754,8 @@ def __MRCExport(input_image, header, MRCfilename, endchar='<', offset=0, idxnewf
             
             zCount = len(input_image) if asList else input_image.shape[0]
             for J in range( zCount ):
-                # print( 'Slice %d: Compressing address at: %d of %d:' % (J, int(J*typeSize*blockSize), input_image.nbytes) )
-                
-                # # Looks like I have problem for typesize > 1?
-                # if int(J*typeSize*chunkSize) >= input_image.nbytes:
-                #     raise MemoryError( 'MRCExport: Tried to reference past end of ndarray %d > %d' % (int(J*typeSize*chunkSize), input_image.nbytes ) )
-                    
-                if asList:
+
+                if asList: # List/tuple iterable
                     if applyCast:
                         compressedData = blosc.compress( input_image[J].astype(dtype).tobytes(),
                                     typeSize, 
@@ -763,7 +791,6 @@ def __MRCExport(input_image, header, MRCfilename, endchar='<', offset=0, idxnewf
 
             
         else: # vanilla MRC
-            
             if asList: 
                 if dtype != 'uint4' and dtype != input_image.dtype:
                     [z_slice.astype(dtype).tofile(f) for z_slice in input_image]
@@ -777,17 +804,21 @@ def __MRCExport(input_image, header, MRCfilename, endchar='<', offset=0, idxnewf
             
     return 
     
-def writeMRCHeader( f, header, endchar = '<' ):
+def writeMRCHeader(f, header, endchar = '<'):
     '''
-    writeMRCHeader( f, header, endchar = '<' )
 
-    Usage::
-
-        writeMRCHeader( f, header )
-        
+    Parameters
+    ----------
     Writes a  header to the file-like object ``f``, requires a dict 
-    called ``header`` to parse the appropriate fields. Use ``defaultHeader()`` to 
-    retrieve an example with all potential fields.
+    called ``header`` to parse the appropriate fields.
+
+    Returns
+    -------
+    ``None``
+
+    Note
+    ----
+    Use `defaultHeader()` to retrieve an example with all potential fields.
     '''
         
     f.seek(0)
@@ -832,7 +863,7 @@ def writeMRCHeader( f, header, endchar = '<' ):
     # Print MX, MY, MZ, the number of pixels
     np.array( dimensions, dtype=endchar+'i4' ).tofile(f)
     # Print cellsize = pixelsize * dimensions
-    # '\AA' will eventually be deprecated, please cease using it.
+    # '\AA' will eventually be deprecated (probably in Python 3.7/8), please cease using it.
     if header['pixelunits'] == '\\AA' or header['pixelunits'] == '\AA':
         AApixelsize = np.array(header['pixelsize'])
     elif header['pixelunits'] == '\mum':
@@ -893,7 +924,7 @@ def writeMRCHeader( f, header, endchar = '<' ):
     f.write( b'MAP ' )
     # Write a machine stamp, '17,17' for big-endian or '68,65'
     # Note that the MRC format doesn't indicate the endianness of the endian 
-    # identifier............................................................
+    # identifier...
     f.seek( 212 )
     if endchar == '<':
         f.write( struct.pack( b'BB', 68, 65 ) )
@@ -938,40 +969,54 @@ def writeMRCHeader( f, header, endchar = '<' ):
     # No extended header
     return 0
 
-def asyncReadMRC( *args, **kwargs ):
+def asyncReadMRC(*args, **kwargs):
     '''
-    asyncReadMRC( *args, **kwargs )
+    Calls `readMRC` in a seperate thread and executes it in the background.
 
-    Returns a ``concurrent.futures.Future`` object, call the method ``result()`` to get the image 
-    and metadata.
+    Parameters
+    ----------
+    Valid arguments are as for `readMRC()`. 
 
-    Usage:: 
+    Returns
+    -------
+    future
+        A ``concurrent.futures.Future()`` object.  Calling ``future.result()`` 
+        will halt until the read is finished and returns the image and meta-data
+        as per a normal call to `readMRC`.  
+
+    Example
+    -------
 
         worker = asyncReadMRC( 'someones_file.mrc' )
         # Do some work
         mrcImage, mrcMeta = worker.result()
-
-    Valid arguments are as for ``readMRC()``.
     '''
-    return _asyncExecutor.submit( readMRC, *args, **kwargs )
+    return _asyncExecutor.submit(readMRC, *args, **kwargs)
 
-def asyncWriteMRC( *args, **kwargs ):
+def asyncWriteMRC(*args, **kwargs):
     '''
-    asyncWriteMRC( *args, **kwargs )
+    Calls `writeMRC` in a seperate thread and executes it in the background.
 
-    Calls writeMRC in a seperate thread and executes it in the background. Returns the thread 
-    object, so if necessary you can call ``concurrent.futures.Future.result()`` to wait for the write to finish, 
-    or check with ``concurrent.futures.Future.done()``.  Usage::
+    Parameters
+    ----------
+    Valid arguments are as for `writeMRC()`.
+
+    Returns
+    -------
+    future
+        A ``concurrent.futures.Future`` object.  If needed, you can call 
+        ``future.result()`` to wait for the write to finish, or check with 
+        ``future.done()``. Most of the time you can ignore the return and let 
+        the system write unmonitored.  An exception would be if you need to pass 
+        in the output to a subprocess.
+
+    Example
+    -------
 
         worker = asyncWriteMRC( npImageData, 'my_mrcfile.mrc' )
         # Do some work
         if not worker.done():
             time.sleep(0.001)
         # File is written to disk
-
-    Most of the time you can ignore the return and let the system finish writing 
-    when it finishes.  
- 
-    Valid arguments are as for writeMRC().
     '''
-    return _asyncExecutor.submit( writeMRC, *args, **kwargs )
+    return _asyncExecutor.submit(writeMRC, *args, **kwargs)

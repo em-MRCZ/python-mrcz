@@ -1,3 +1,10 @@
+0.3.5
+-----
+
+* If ``blosc`` is not installed and the user attempts to operate with compression 
+  on an ``ImportError`` is raised.
+* Documentation now using Numpy docstrings.
+
 0.3.4
 -----
 
