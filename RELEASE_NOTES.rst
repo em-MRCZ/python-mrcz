@@ -1,3 +1,10 @@
+0.3.6
+-----
+
+* `mrcz.ReliablePy` must be imported explicitely now, as it has requirements 
+  that the base `mrcz` package does not. This file may be removed in the 
+  future if no users are using it.
+
 0.3.5
 -----
 
