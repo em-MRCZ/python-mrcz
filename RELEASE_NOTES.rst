@@ -1,3 +1,7 @@
+0.3.7
+-----
+* Updated MANIFEST.in and `setup.py` to make Conda-forge happy.
+
 0.3.6
 -----
 

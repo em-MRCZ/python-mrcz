@@ -20,14 +20,15 @@ def exit_with_error(message):
     sys.exit(1)
 
 # Setup requirements
-requires = ['numpy', 'setuptools' ]
+setup_requires = ['setuptools']
+install_requires = ['numpy']
 
 # Check for Python
 if sys.version_info[0] == 2:
     if sys.version_info[1] < 7:
         exit_with_error("You need Python 2.7 or greater to install mrcz")
     else: 
-        requires.append('futures') # For concurrent.futures we need the backport in Py2.7
+        install_requires.append('futures') # For concurrent.futures we need the backport in Py2.7
 
 elif sys.version_info[0] == 3:
     if sys.version_info[1] < 4:
@@ -41,7 +42,7 @@ else:
 #### MRCZ version ####
 major_ver = 0
 minor_ver = 3
-nano_ver = 6
+nano_ver = 7
 branch = ''
 
 VERSION = "%d.%d.%d%s" % (major_ver, minor_ver, nano_ver, branch)
@@ -84,6 +85,7 @@ blocked and multi-threaded way to take advantage of modern multi-core CPUs.
       url = 'http://github.com/em-MRCZ/python-mrcz',
       license = 'https://opensource.org/licenses/BSD-3-Clause',
       platforms = ['any'],
-      setup_requires=requires,
+      setup_requires=setup_requires,
+      install_requires=install_requires,
       packages = ['mrcz'],
 )

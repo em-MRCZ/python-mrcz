@@ -1,0 +1,47 @@
+Preliminaries
+-------------
+
+* Ensure that `README.rst` has up-to-date release notes.
+
+* Ensure that there are no branches in the version in `setup.py`.
+
+* Check the test results from Appveyor and TravisCI.
+
+* Push any latest changes.
+
+Release
+-------
+
+* Create a new tag for the given version
+
+    git tag -a vX.Y.Z -m "Tagging version X.Y.Z"
+
+* Push the tag to Github:
+
+    git push
+    git push --tags
+
+Package and upload
+------------------
+
+Build a source distribution and a wheel for Windows and the latest Python version
+as:
+
+    python setup.py sdist bdist_wheel upload -r pypi
+
+To build the `conda-forge` recipe (requires `conda-build`) in 'meta.yaml':
+
+    conda build -c conda-forge .
+
+You may need to set automatic uploading to anaconda (requires `anaconda-client`), via:
+
+    conda config --set anaconda_upload yes
+
+
+
+Finally
+-------
+
+* Increment the version enumerator in `setup.py`
+
+
