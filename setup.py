@@ -20,7 +20,7 @@ def exit_with_error(message):
     sys.exit(1)
 
 # Setup requirements
-setup_requires = ['setuptools']
+setup_requires = []
 install_requires = ['numpy']
 
 # Check for Python
