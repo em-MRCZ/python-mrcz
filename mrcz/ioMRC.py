@@ -560,7 +560,20 @@ def writeMRC(input_image, MRCfilename, meta=None, endian='le', dtype=None,
         # Verify that each image in the list is the same 2D shape and dtype
         for z_slice in input_image:
             assert( np.all(z_slice.shape == dims[1:]) )
+
+            if z_slice.dtype == np.float64 or z_slice.dtype == float:
+                if not WARNED_ABOUT_CASTING:
+                    logger.warn('Casting {} to `numpy.float64`'.format(MRCfilename))
+                    _WARNED_ABOUT_CASTING = True
+                z_slice = z_slice.astype(np.float32)
+            elif z_slice.dtype == np.complex128:
+                if not WARNED_ABOUT_CASTING:
+                    logger.warn('Casting {} to `numpy.complex64`'.format(MRCfilename))
+                    _WARNED_ABOUT_CASTING = True
+                z_slice = z_slice.astype(np.complex64)
             assert( z_slice.dtype == input_image[0].dtype )
+
+        # Cast float64 -> float32, and complex128 -> complex64
 
     else: # Array-'like' object
         asList = False
@@ -569,17 +582,17 @@ def writeMRC(input_image, MRCfilename, meta=None, endian='le', dtype=None,
             # If it's a 2D image we force it to 3D - this makes life easier later:
             input_image = input_image.reshape( ( 1, input_image.shape[0], input_image.shape[1] ) )
 
-    # Cast float64 -> float32, and complex128 -> complex64
-    if input_image.dtype == np.float64 or input_image.dtype == float:
-        if not WARNED_ABOUT_CASTING:
-            logger.warn('Casting {} to `numpy.float64`'.format(MRCfilename))
-            _WARNED_ABOUT_CASTING = True
-        input_image = input_image.astype(np.float32)
-    elif input_image.dtype == np.complex128:
-        if not WARNED_ABOUT_CASTING:
-            logger.warn('Casting {} to `numpy.complex64`'.format(MRCfilename))
-            _WARNED_ABOUT_CASTING = True
-        input_image = input_image.astype(np.complex64)
+        # Cast float64 -> float32, and complex128 -> complex64
+        if input_image.dtype == np.float64 or input_image.dtype == float:
+            if not WARNED_ABOUT_CASTING:
+                logger.warn('Casting {} to `numpy.float64`'.format(MRCfilename))
+                _WARNED_ABOUT_CASTING = True
+            input_image = input_image.astype(np.float32)
+        elif input_image.dtype == np.complex128:
+            if not WARNED_ABOUT_CASTING:
+                logger.warn('Casting {} to `numpy.complex64`'.format(MRCfilename))
+                _WARNED_ABOUT_CASTING = True
+            input_image = input_image.astype(np.complex64)
 
     # We will need this regardless if writing to an existing file or not:
     if endian == 'le':
