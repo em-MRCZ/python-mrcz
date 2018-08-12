@@ -1,7 +1,7 @@
 Preliminaries
 -------------
 
-* Ensure that `README.rst` has up-to-date release notes.
+* Ensure that `RELEASE_NOTES.rst` has up-to-date release notes.
 
 * Ensure that there are no branches in the version in `setup.py`.
 

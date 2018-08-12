@@ -1,3 +1,8 @@
+0.3.8
+-----
+* Auto-casts `np.float64` -> `np.float32` and `np.complex128` -> `np.complex64` 
+  but logs a warning to the user.
+
 0.3.7
 -----
 * Updated MANIFEST.in and `setup.py` to make Conda-forge happy.

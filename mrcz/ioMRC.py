@@ -67,7 +67,7 @@ REVERSE_CCPEM_ENUM = {'int8':0, 'i1':0,
                       'uint32': 8, 'u4':8,
                       'float64':2, 'f8':2, 'float32':2, 'f4':2,
                       'complex128':4, 'c16':4, 'complex64':4, 'c8':4 }
-
+WARNED_ABOUT_CASTING = False
 
 _asyncExecutor = ThreadPoolExecutor(max_workers = 1)
 def _setAsyncWorkers(N_workers):
@@ -568,6 +568,18 @@ def writeMRC(input_image, MRCfilename, meta=None, endian='le', dtype=None,
         if len( input_image.shape ) == 2:
             # If it's a 2D image we force it to 3D - this makes life easier later:
             input_image = input_image.reshape( ( 1, input_image.shape[0], input_image.shape[1] ) )
+
+    # Cast float64 -> float32, and complex128 -> complex64
+    if input_image.dtype == np.float64 or input_image.dtype == float:
+        if not WARNED_ABOUT_CASTING:
+            logger.warn('Casting {} to `numpy.float64`'.format(MRCfilename))
+            _WARNED_ABOUT_CASTING = True
+        input_image = input_image.astype(np.float32)
+    elif input_image.dtype == np.complex128:
+        if not WARNED_ABOUT_CASTING:
+            logger.warn('Casting {} to `numpy.complex64`'.format(MRCfilename))
+            _WARNED_ABOUT_CASTING = True
+        input_image = input_image.astype(np.complex64)
 
     # We will need this regardless if writing to an existing file or not:
     if endian == 'le':

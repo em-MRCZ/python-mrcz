@@ -42,7 +42,7 @@ else:
 #### MRCZ version ####
 major_ver = 0
 minor_ver = 3
-nano_ver = 7
+nano_ver = 8
 branch = ''
 
 VERSION = "%d.%d.%d%s" % (major_ver, minor_ver, nano_ver, branch)
