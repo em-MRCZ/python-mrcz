@@ -408,7 +408,7 @@ def readMRCHeader(MRCfilename, endian='le', fileConvention = 'ccpem', pixelunits
         # Extract compressor from dtype > MRC_COMP_RATIO
         header['compressor'] = COMPRESSOR_ENUM[ np.floor_divide(header['MRCtype'], MRC_COMP_RATIO) ]
         header['MRCtype'] = np.mod( header['MRCtype'], MRC_COMP_RATIO )
-        logger.info( 'compressor: %s, MRCtype: %s' % (str(header['compressor']),str(header['MRCtype'])) )
+        logger.debug( 'compressor: %s, MRCtype: %s' % (str(header['compressor']),str(header['MRCtype'])) )
         
         fileConvention = fileConvention.lower()
         
@@ -770,7 +770,7 @@ def __MRCExport(input_image, header, MRCfilename, endchar='<', offset=0,
                 and (header['compressor'] in REVERSE_COMPRESSOR_ENUM) \
                 and (REVERSE_COMPRESSOR_ENUM[header['compressor']]) > 0:
             # compressed MRCZ
-            logger.info( 'Compressing %s with compressor %s%d' %
+            logger.debug( 'Compressing %s with compressor %s%d' %
                     (MRCfilename, header['compressor'], header['clevel'] ) )
             
             applyCast = False
