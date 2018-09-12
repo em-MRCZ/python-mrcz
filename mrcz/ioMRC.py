@@ -107,7 +107,7 @@ def _setAsyncWorkers(N_workers):
     _asyncExecutor._max_workers = N_workers
     _asyncExecutor._adjust_thread_count()
 
-def setDefaultThreads(n_threads: int):
+def setDefaultThreads(n_threads):
     """
     Set the default number of threads, if the argument is not provided in 
     calls to `readMRC` and `writeMRC`.
