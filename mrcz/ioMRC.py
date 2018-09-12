@@ -633,8 +633,6 @@ def writeMRC(input_image, MRCfilename, meta=None, endian='le', dtype=None,
         
         header['pixelsize'] = pixelsize
         header['pixelunits'] = pixelunits
-        header['compressor'] = compressor
-        header['clevel'] = clevel
         header['shape'] = shape
         
         # This overhead calculation is annoying but many 3rd party tools that use 
@@ -674,8 +672,6 @@ def writeMRC(input_image, MRCfilename, meta=None, endian='le', dtype=None,
         if n_threads == None and BLOSC_PRESENT:
             n_threads = blosc.detect_number_of_cores()
         header['n_threads'] = n_threads
-        
-        # TODO: can we detect the number of cores without adding a heavy dependancy?
         
         if dtype == 'uint4':
             if asList:
@@ -761,25 +757,31 @@ def __MRCExport(input_image, header, MRCfilename, endchar='<', offset=0,
             logger.info( 'Compressing %s with compressor %s%d' %
                     (MRCfilename, header['compressor'], header['clevel'] ) )
             
-
             applyCast = False
             if asList:
                 chunkSize = input_image[0].size
                 typeSize = input_image[0].dtype.itemsize
-                if dtype != 'uint4' and input_image[0].dtype != dtype: applyCast = True
+                if dtype != 'uint4' and input_image[0].dtype != dtype: 
+                    applyCast = True
             else:
                 chunkSize = input_image[0,:,:].size
                 typeSize = input_image.dtype.itemsize
-                if dtype != 'uint4' and input_image.dtype != dtype: applyCast = True
+                if dtype != 'uint4' and input_image.dtype != dtype: 
+                    applyCast = True
                 
             blosc.set_nthreads( header['n_threads'] )
-            blosc.set_blocksize( BLOSC_BLOCK )
+            # for small image dimensions we need to scale blocksize appropriately
+            # so we use the available cores
+            block_size = np.minimum(BLOSC_BLOCK, chunkSize//header['n_threads'])
+            blosc.set_blocksize(block_size)
             
             header['packedBytes'] = 0
             
             zCount = len(input_image) if asList else input_image.shape[0]
+            # FIXME: Reminder, f-strings only work in Py3.6
+            # print(f'block_size: {block_size}, zCount: {zCount}, asList: {asList}, applyCast: {applyCast}')
+            # print(f'Compressor: {header["compressor"]}, clevel: {header["clevel"]}')
             for J in range( zCount ):
-
                 if asList: # List/tuple iterable
                     if applyCast:
                         compressedData = blosc.compress( input_image[J].astype(dtype).tobytes(),
@@ -806,7 +808,8 @@ def __MRCExport(input_image, header, MRCfilename, endchar='<', offset=0,
                                     clevel=header['clevel'], 
                                     shuffle=blosc.BITSHUFFLE,
                                     cname=header['compressor'] )
-                f.write( compressedData )
+
+                f.write(compressedData)
                     
                 header['packedBytes'] += len(compressedData)
                 
@@ -817,10 +820,12 @@ def __MRCExport(input_image, header, MRCfilename, endchar='<', offset=0,
             
         else: # vanilla MRC
             if asList: 
-                if dtype != 'uint4' and dtype != input_image.dtype:
-                    [z_slice.astype(dtype).tofile(f) for z_slice in input_image]
+                if dtype != 'uint4' and dtype != input_image[0].dtype:
+                    for z_slice in input_image:
+                        z_slice.astype(dtype).tofile(f)
                 else:
-                    [z_slice.tofile(f) for z_slice in input_image]
+                    for z_slice in input_image:
+                        z_slice.tofile(f)
             else:
                 if dtype != 'uint4' and dtype != input_image.dtype:
                     input_image = input_image.astype(dtype)
