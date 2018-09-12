@@ -34,11 +34,13 @@ try:
     # For async operations we want to release the GIL in blosc operations and 
     # file IO operations.
     blosc.set_releasegil(True)
+    DEFAULT_N_THREADS = blosc.detect_number_of_cores()
 except ImportError: 
     # Can be ImportError or ModuleNotFoundError depending on the Python version,
     # but ModuleNotFoundError is a child of ImportError and is still caught.
     BLOSC_PRESENT = False
     logger.info( '`blosc` meta-compression library not found, file compression disabled.' )
+    DEFAULT_N_THREADS = 1
 try: 
     import rapidjson as json
 except ImportError:
@@ -49,7 +51,6 @@ except ImportError:
 # Quite arbitrary, in bytes (hand-optimized)
 BUFFERSIZE = 2**20
 BLOSC_BLOCK = 2**16
-
 DEFAULT_HEADER_LEN = 1024
 
 # ENUM dicts for our various Python to MRC constant conversions
@@ -69,6 +70,9 @@ REVERSE_CCPEM_ENUM = {'int8':0, 'i1':0,
                       'complex128':4, 'c16':4, 'complex64':4, 'c8':4 }
 WARNED_ABOUT_CASTING = False
 
+# Executor for writing compressed blocks to disk
+_asyncWriter = ThreadPoolExecutor(max_workers = 1)
+# Executor for calls to asyncReadMRC and asyncWriteMRC
 _asyncExecutor = ThreadPoolExecutor(max_workers = 1)
 def _setAsyncWorkers(N_workers):
     '''
@@ -103,6 +107,18 @@ def _setAsyncWorkers(N_workers):
     _asyncExecutor._max_workers = N_workers
     _asyncExecutor._adjust_thread_count()
 
+def setDefaultThreads(n_threads: int):
+    """
+    Set the default number of threads, if the argument is not provided in 
+    calls to `readMRC` and `writeMRC`.
+
+    Generally optimal thread count is the number of physical cores, but 
+    blosc defaults to the number of virtual cores. Therefore on machines with 
+    hyperthreading it can be more efficient to manually set this value
+    """
+    global DEFAULT_N_THREADS
+    DEFAULT_N_THREADS = int(n_threads)
+
 def defaultHeader():
     '''
     Generator function to create a metadata header dictionary with the relevant
@@ -135,7 +151,7 @@ def defaultHeader():
     header['gain'] = 1.0 # counts/electron
     
     if BLOSC_PRESENT:
-        header['n_threads'] = blosc.detect_number_of_cores()
+        header['n_threads'] = DEFAULT_N_THREADS
     
     return header
     
@@ -286,7 +302,7 @@ def __MRCZImport(f, header, endian='le', fileConvention='ccpem',
         raise ImportError( '`blosc` is not installed, cannot decompress file.' )
         
     if n_threads == None:
-        blosc.nthreads = blosc.detect_number_of_cores()
+        blosc.nthreads = DEFAULT_N_THREADS
     else:
         blosc.nthreads = n_threads
 
@@ -670,7 +686,7 @@ def writeMRC(input_image, MRCfilename, meta=None, endian='le', dtype=None,
         header['compressor'] = compressor
         header['clevel'] = clevel
         if n_threads == None and BLOSC_PRESENT:
-            n_threads = blosc.detect_number_of_cores()
+            n_threads = DEFAULT_N_THREADS
         header['n_threads'] = n_threads
         
         if dtype == 'uint4':
@@ -777,46 +793,34 @@ def __MRCExport(input_image, header, MRCfilename, endchar='<', offset=0,
             
             header['packedBytes'] = 0
             
-            zCount = len(input_image) if asList else input_image.shape[0]
-            # FIXME: Reminder, f-strings only work in Py3.6
-            # print(f'block_size: {block_size}, zCount: {zCount}, asList: {asList}, applyCast: {applyCast}')
-            # print(f'Compressor: {header["compressor"]}, clevel: {header["clevel"]}')
-            for J in range( zCount ):
-                if asList: # List/tuple iterable
-                    if applyCast:
-                        compressedData = blosc.compress( input_image[J].astype(dtype).tobytes(),
+            clevel = header['clevel']
+            cname = header['compressor']
+            for J, frame in enumerate(input_image):
+                if applyCast:
+                    frame = frame.astype(dtype)
+
+                if frame.flags['C_CONTIGUOUS'] and frame.flags['ALIGNED']:
+                    # Use pointer
+                    compressedData = blosc.compress_ptr(frame.__array_interface__['data'][0], 
+                                    frame.size,
                                     typeSize, 
                                     clevel=header['clevel'], 
                                     shuffle=blosc.BITSHUFFLE,
-                                    cname=header['compressor'] )
-                    else:
-                        compressedData = blosc.compress( input_image[J].tobytes(),
+                                    cname=header['compressor'])
+                else: 
+                    # Use tobytes, which is slower in benchmarking
+                    compressedData = blosc.compress(frame.tobytes(),
                                     typeSize, 
-                                    clevel=header['clevel'], 
+                                    clevel=clevel, 
                                     shuffle=blosc.BITSHUFFLE,
-                                    cname=header['compressor'] )
-                else: # Array-like
-                    if applyCast:
-                        compressedData = blosc.compress( input_image[J,:,:].astype(dtype).tobytes(),
-                                    typeSize, 
-                                    clevel=header['clevel'], 
-                                    shuffle=blosc.BITSHUFFLE,
-                                    cname=header['compressor'] )
-                    else:
-                        compressedData = blosc.compress( input_image[J,:,:].tobytes(),
-                                    typeSize, 
-                                    clevel=header['clevel'], 
-                                    shuffle=blosc.BITSHUFFLE,
-                                    cname=header['compressor'] )
+                                    cname=cname)
 
                 f.write(compressedData)
-                    
                 header['packedBytes'] += len(compressedData)
-                
+
             # Rewind and write out the total compressed size
             f.seek(144)
-            np.int64( header['packedBytes'] ).astype( endchar + 'i8' ).tofile(f)
-
+            np.int64( header['packedBytes'] ).astype(endchar + 'i8').tofile(f)
             
         else: # vanilla MRC
             if asList: 

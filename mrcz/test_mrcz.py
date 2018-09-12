@@ -67,6 +67,7 @@ class PythonMrczTests(unittest.TestCase):
                            compressor=compressor, clevel=clevel )
         
         rereadMage, rereadHeader = mrcz.readMRC( mrcName, pixelunits=u"\AA")
+        #  `tempfile.TemporaryDirectory` would be better but Python 2.7 doesn't support it
         try: os.remove( mrcName )
         except IOError: log.info( "Warning: file {} left on disk".format(mrcName) )
         
@@ -235,8 +236,30 @@ class PythonMrczTests(unittest.TestCase):
         npt.assert_array_equal( rereadHeader['C3'], 2.7 )
         npt.assert_array_equal( rereadHeader['gain'], 1.05 )
         pass
+
+    def test_strided_array(self):
+        log.info('Testing strided array MRC')
+        testMage0 = np.random.normal( size=[2,128,96] ).astype(np.float32)
+        testMage0 = testMage0[:,::2,::2]
+        self.compReadWrite( testMage0, compressor='zstd', clevel=1 )
+
+    def test_casted_array(self):
+        log.info('Testing float-64 casting')
+        testMage = np.random.normal( size=[2,128,96] ).astype(np.float64)
+
+        mrcName = os.path.join( tmpDir, "testMage.mrc" )
+        pixelsize = np.array( [1.2, 2.6, 3.4] )
+
+        mrcz.writeMRC(testMage, mrcName, compressor='zstd', clevel=1)
+        rereadMage, rereadHeader = mrcz.readMRC(mrcName)
+        #  `tempfile.TemporaryDirectory` would be better but Python 2.7 doesn't support it
+        try: os.remove( mrcName )
+        except IOError: log.info( "Warning: file {} left on disk".format(mrcName) )
+        
+        npt.assert_array_almost_equal( testMage.astype('float32'), rereadMage )
+
     
-cmrczProg = which( 'mrcz' )
+cmrczProg = which('mrcz')
 if cmrczProg is None:
     log.debug( "NOTE: mrcz not found in system path, not testing python-mrcz to c-mrcz cross-compatibility" )
 
@@ -356,7 +379,8 @@ def test(verbosity=2):
     if cmrczProg is not None:
         theSuite.addTest(unittest.makeSuite(PythonToCMrczTests))
 
-    return unittest.TextTestRunner(verbosity=verbosity).run(theSuite)
+    test_result = unittest.TextTestRunner(verbosity=verbosity).run(theSuite)
+    return test_result
     
 if __name__ == "__main__":
     # Should generally call "python -m unittest -v mrcz.test" for continuous integration

@@ -1,3 +1,13 @@
+0.4.0
+-----
+* Fix a minor bug with casting for lists of arrays
+* Improved uncompressed write times by not using list comphrension
+* Add scaling block size for small format images (e.g. Medipix) to scale to 
+  the number of threads.
+* If the passed arrays are C_CONTIGUOUS and ALIGNED, `writeMRC` will use 
+  `blosc.compress_ptr` instead of coverting the array to a `bytes` object 
+  which is a significant speedup.
+
 0.3.8
 -----
 * Auto-casts `np.float64` -> `np.float32` and `np.complex128` -> `np.complex64` 
