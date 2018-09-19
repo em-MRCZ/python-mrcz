@@ -76,8 +76,8 @@ _asyncWriter = ThreadPoolExecutor(max_workers = 1)
 _asyncExecutor = ThreadPoolExecutor(max_workers = 1)
 def _setAsyncWorkers(N_workers):
     '''
-    *This function is protected as there appears to be little value in using more 
-    than one worker. It may be subject to removal in the future.*
+    **This function is protected as there appears to be little value in using more 
+    than one worker. It may be subject to removal in the future.**
 
     Sets the maximum number of background workers that can be used for reading 
     or writing with the functions.  Defaults to 1. Generally when writing 
@@ -1005,7 +1005,7 @@ def writeMRCHeader(f, header, endchar = '<'):
 
 def asyncReadMRC(*args, **kwargs):
     '''
-    Calls `readMRC` in a seperate thread and executes it in the background.
+    Calls `readMRC` in a separate thread and executes it in the background.
 
     Parameters
     ----------

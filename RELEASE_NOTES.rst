@@ -1,3 +1,8 @@
+0.4.1
+-----
+* Improved docstrings in `ioDM4.py`.
+* Added `asyncReadDM4` function, analogous to `asyncReadMRC`.
+
 0.4.0
 -----
 * Fix a minor bug with casting for lists of arrays

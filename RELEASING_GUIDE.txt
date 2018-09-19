@@ -29,19 +29,20 @@ as:
 
     python setup.py sdist bdist_wheel upload -r pypi
 
-To build the `conda-forge` recipe (requires `conda-build`) in 'meta.yaml':
 
-    conda build -c conda-forge .
+To build the `conda-forge` recipe first copy the SHA hash from the latest release
+`mrcz-X.Y.Z.tar.gz` on pypi:
 
-You may need to set automatic uploading to anaconda (requires `anaconda-client`), via:
+    https://pypi.org/project/mrcz/
 
-    conda config --set anaconda_upload yes
-
-
+Then in the `staged-recipes` git repo you need to modify `recipes/mrcz/meta.yml`
+to:
+    - Bump the version 
+    - Paste in the new SHA hash
 
 Finally
 -------
 
-* Increment the version enumerator in `setup.py`
+* Increment the version enumerator in `setup.py` and push.
 
 
