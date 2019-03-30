@@ -569,25 +569,36 @@ def writeMRC(input_image, MRCfilename, meta=None, endian='le', dtype=None,
 
     if isinstance(input_image, (tuple,list)):
         asList = True
-        if input_image[0].ndim != 2:
-            raise ValueError( "List of arrays must have 2D arrays as elements" )
-        dims = np.array( [len(input_image), input_image[0].shape[0], input_image[0].shape[1]])
+        if input_image[0].ndim == 3:
+            depth = input_image[0].shape[0]
 
-        # Verify that each image in the list is the same 2D shape and dtype
-        for z_slice in input_image:
-            assert( np.all(z_slice.shape == dims[1:]) )
+            for slice3d in input_image:
+                if slice3d.shape[0] != depth:
+                    raise ValueError('List of 3D arrays must all have the same z-axis depth')
+            
+            dims = np.array([depth * len(input_image), input_image[0].shape[1], input_image[0].shape[2]])
 
-            if z_slice.dtype == np.float64 or z_slice.dtype == float:
-                if not WARNED_ABOUT_CASTING:
-                    logger.warn('Casting {} to `numpy.float64`'.format(MRCfilename))
-                    _WARNED_ABOUT_CASTING = True
-                z_slice = z_slice.astype(np.float32)
-            elif z_slice.dtype == np.complex128:
-                if not WARNED_ABOUT_CASTING:
-                    logger.warn('Casting {} to `numpy.complex64`'.format(MRCfilename))
-                    _WARNED_ABOUT_CASTING = True
-                z_slice = z_slice.astype(np.complex64)
-            assert( z_slice.dtype == input_image[0].dtype )
+        elif input_image[0].ndim == 2:
+            dims = np.array([len(input_image), input_image[0].shape[0], input_image[0].shape[1]])
+
+            # Verify that each image in the list is the same 2D shape and dtype
+            for z_slice in input_image:
+                assert( np.all(z_slice.shape == dims[1:]) )
+
+                if z_slice.dtype == np.float64 or z_slice.dtype == float:
+                    if not WARNED_ABOUT_CASTING:
+                        logger.warn('Casting {} to `numpy.float64`'.format(MRCfilename))
+                        _WARNED_ABOUT_CASTING = True
+                    z_slice = z_slice.astype(np.float32)
+                elif z_slice.dtype == np.complex128:
+                    if not WARNED_ABOUT_CASTING:
+                        logger.warn('Casting {} to `numpy.complex64`'.format(MRCfilename))
+                        _WARNED_ABOUT_CASTING = True
+                    z_slice = z_slice.astype(np.complex64)
+                assert( z_slice.dtype == input_image[0].dtype )
+        else:
+            raise ValueError( "List of arrays must have 2D  or 3D arrays as elements" )
+        
 
         # Cast float64 -> float32, and complex128 -> complex64
 
