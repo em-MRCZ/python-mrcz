@@ -48,8 +48,8 @@ Optional deviations from CCPEM MRC2014 standard
    **Deprecated**.
 3. **Word 35 (@ byte 140)**: Detector gain in e^-/DN, defaults to 1.0. 
    **Deprecated**.
-4. **Word 36 (@ byte 14)**: Size of compressed data in bytes, including 
-   ``blosc`` headers.  Present for convenience only.
+4. **Word 36-37 (@ byte 14)**: Size of compressed data in bytes stored as a 64-bit
+   integer, including ``blosc`` headers. Present for convenience only.
 5. **Word 57 (@ byte 224)**: The ascii-encoded identifier label 'MRCZ<version>'.
    For example, ``b'MRCZ0.3.1'.
 

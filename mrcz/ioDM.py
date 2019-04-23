@@ -450,7 +450,7 @@ class readDM4(object):
 
 def asyncReadDM4(*args, **kwargs):
     '''
-    Calls `readDM4` in a seperate thread and executes it in the background.
+    Calls `readDM4` in a separate thread and executes it in the background.
 
     Parameters
     ----------

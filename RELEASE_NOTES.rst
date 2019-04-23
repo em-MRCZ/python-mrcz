@@ -1,3 +1,15 @@
+0.5.0
+-----
+* Added support for lists of 3D `numpy.ndarray` objects. This is largely intended 
+  to support multi-channel STEM time series. Stores the number of channels per 
+  frame in the `MZ` value of the MRC2014 header, which must be uniform for 
+  every ndarray in the list. Any MRCZ archive that has a 'strides' key in the 
+  JSON metadata will be returned as a list of arrays. 
+  - See http://www.ccpem.ac.uk/mrc_format/mrc2014.php for header details
+  - `asList` keyword arguments have been removed.
+* Fixed a bug in casting from float64/complex128 that was not actually casting.
+* Cleaned up the code to be more PEP8 compliant.
+
 0.4.1
 -----
 * Improved docstrings in `ioDM4.py`.
