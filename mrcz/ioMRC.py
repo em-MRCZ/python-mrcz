@@ -284,7 +284,7 @@ def readMRC(MRCfilename, idx=None, endian='le',
                 # print(f'slices: {slices}, n_frames: {n_frames}, frame_size: {frame_size}, dims: {dims}')
 
                 # np.fromfile advances the file pointer `f` for us.
-                image = [np.squeeze(np.fromfile(f, dtype=dtype, count=frame_size).reshape((slices, *dims[1:]))) \
+                image = [np.squeeze(np.fromfile(f, dtype=dtype, count=frame_size).reshape((slices, dims[1], dims[2]))) \
                         for imSlice in range(n_frames)]
                
             else: # monolithic NumPy ndarray
