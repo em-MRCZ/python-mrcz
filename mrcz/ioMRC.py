@@ -275,13 +275,9 @@ def readMRC(MRCfilename, idx=None, endian='le',
         else: # Load entire file into memory
             dims = header['dimensions']
             if slices > 0: # List of NumPy 2D-arrays
-
-
                 frame_size = slices * np.product(dims[1:])
                 n_frames = dims[0] // slices
                 dtype = header['dtype']
-
-                # print(f'slices: {slices}, n_frames: {n_frames}, frame_size: {frame_size}, dims: {dims}')
 
                 # np.fromfile advances the file pointer `f` for us.
                 image = [np.squeeze(np.fromfile(f, dtype=dtype, count=frame_size).reshape((slices, dims[1], dims[2]))) \
@@ -366,31 +362,6 @@ def __MRCZImport(f, header, slices, endian='le', fileConvention='ccpem',
             image[J,:,:] = np.frombuffer(
                                     blosc.decompress(f.read(ctbytes)), dtype=dtype).reshape(target_shape)
             blosc_chunk_pos += (ctbytes)
-
-
-
-    # for J in range(n_frames):
-    #     f.seek(blosc_chunk_pos)
-    #     ((nbytes, blockSize, ctbytes), (ver_info)) = readBloscHeader(f)
-    #     f.seek(blosc_chunk_pos)
-    #     # blosc includes the 16 header bytes in ctbytes
-    #     if slices == 1:
-    #         image.append(np.frombuffer(
-    #                     blosc.decompress(f.read(ctbytes)), dtype=dtype).reshape(target_shape))
-    #         # image.append(np.squeeze(np.frombuffer(chunk, dtype=dtype).reshape(target_shape)))
-    #     elif slices > 1:
-    #         print('slices > 1')
-    #         frame = np.empty(target_shape, dtype=dtype)
-    #         for I in range(slices):
-    #             frame[I,:,:] = np.frombuffer(
-    #                     blosc.decompress(f.read(ctbytes)), dtype=dtype).reshape(target_shape[1:])
-    #         image.append(frame)
-    #     else:
-    #         image[J,:,:] = np.frombuffer(
-    #                                 blosc.decompress(f.read(ctbytes)), dtype=dtype).reshape(target_shape)
-            
-    #     blosc_chunk_pos += (ctbytes)
-    #     pass
     
     
     if header['MRCtype'] == 101:
@@ -986,7 +957,6 @@ def writeMRCHeader(f, header, slices, endchar='<'):
             # This is written afterward so we don't try to keep the entire compressed file in RAM
             pass
             
-        
     f.seek(12)
     MRCmode.tofile(f)
     
@@ -995,7 +965,8 @@ def writeMRCHeader(f, header, slices, endchar='<'):
 
     # Print MX, MY, MZ, the sampling. We only allow for slicing along the z-axis,
     # e.g. for multi-channel STEM.
-    np.array([0, 0, slices], dtype=dtype_i4).tofile(f)
+    f.seek(36)
+    np.int32(slices).astype(dtype_i4).tofile(f)
 
     # Print cellsize = pixelsize * dimensions
     # '\AA' will eventually be deprecated (probably in Python 3.7/8), please cease using it.
