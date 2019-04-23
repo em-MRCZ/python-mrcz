@@ -1091,7 +1091,7 @@ def writeMRCHeader(f, header, slices, endchar='<'):
                 logger.error('    {}: {}'.format(key, type(value)))
                 if hasattr(value, '__len__'):
                     logger.error('        ' + str([type(thing) for thing in value]))
-            raise TypeError('Some value in the meta-data is not JSONable; typically this is a buried NumPy array') from e
+            raise TypeError('Some value in the meta-data is not JSONable; typically this is a buried NumPy array')
 
         jsonLen = len(jsonMeta)
         # Length of extended header
