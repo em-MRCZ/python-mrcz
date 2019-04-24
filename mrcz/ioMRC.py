@@ -25,6 +25,7 @@ except ImportError as e:
         raise ImportError('Get the backport for `concurrent.futures` for Py2.7 as `pip install futures`')
     raise e
 from mrcz.__version__ import __version__
+from distutils.version import StrictVersion
 
 import logging
 logger = logging.getLogger('MRCZ')
@@ -155,6 +156,35 @@ def defaultHeader():
         header['n_threads'] = DEFAULT_N_THREADS
     
     return header
+
+def _getMRCZVersion(label):
+    """
+    Checks to see if the first label holds the MRCZ version information, 
+    in which case it returns a version object. Generally used to recover nicely
+    in case of backward compatibility problems.
+
+    Parameters
+    ----------
+    label: Union[str, bytes]
+
+    Returns
+    -------
+    version: Optional[distutils.version.StrictVersion]
+        areturns ``None`` if `label` cannot be parsed.
+    """
+    if isinstance(label, bytes):
+        label = label.decode()
+
+    label = label.rstrip(' \t\r\n\0')
+    if not label.startswith('MRCZ'):
+        return None
+
+    label = label[4:]
+    try:
+        version = StrictVersion(label)
+        return version
+    except ValueError:
+        return None
     
     
 def readMRC(MRCfilename, idx=None, endian='le', 
@@ -424,8 +454,13 @@ def readMRCHeader(MRCfilename, slices, endian='le', fileConvention = 'ccpem', pi
 
     header = {}
     with open(MRCfilename, 'rb') as f:
+        # Grab version information early
+        f.seek(224)
+        mrcz_version = _getMRCZVersion(f.read(80))
+
         # diagStr = ''
         # Get dimensions, in format [nz, ny, nx] (stored as [nx,ny,nz] in the file)
+        f.seek(0)
         header['dimensions'] = np.flipud(np.fromfile(f, dtype=dtype_i4, count=3))
     
         header['MRCtype'] = int(np.fromfile(f, dtype=dtype_i4, count=1)[0])
@@ -467,11 +502,17 @@ def readMRCHeader(MRCfilename, slices, endian='le', fileConvention = 'ccpem', pi
 
         # slices is z-axis per frame for list-of-arrays representation
         if slices is None:
-            f.seek(28)
-            m_values = np.fromfile(f, dtype=dtype_i4, count=3)
-            print(f'DEBUG: m_values in {MRCfilename} are {m_values}')
-            f.seek(36)
-            slices = int(np.fromfile(f, dtype=dtype_i4, count=1))
+            # We had a bug in version <= 0.4.1 where we wrote the dimensions 
+            # into both (Nx, Ny, Nz) AND (Mx, My, Mz), therefore the slicing 
+            # is essentially unknown (and wrong). So we have this version 
+            # check where we force slices to be 1 (i.e. we assume it is a 
+            # stack of 2D images).
+            if mrcz_version is not None and mrcz_version < StrictVersion('0.5.0'):
+                logger.warning('MRCZ version < 0.5.0, assuming slices == 1.')
+                slices = 1
+            else:
+                f.seek(36)
+                slices = int(np.fromfile(f, dtype=dtype_i4, count=1))
 
         # Read in pixelsize
         f.seek(40)
@@ -482,7 +523,7 @@ def readMRCHeader(MRCfilename, slices, endian='le', fileConvention = 'ccpem', pi
         header['pixelunits'] = pixelunits
             
         # '\AA' will eventually be deprecated, please cease using it.
-        if header['pixelunits'] == u'\\AA' or header['pixelunits']==u'\AA':
+        if header['pixelunits'] == u'\\AA' or header['pixelunits'] == u'\AA':
             pass
         elif header['pixelunits'] == u'\mum':
             header['pixelsize'] *= 1E-5

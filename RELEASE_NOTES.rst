@@ -1,3 +1,13 @@
+0.5.1
+-----
+* Versions of MRCZ <= 0.4.1 were improperly writing the dimensions into the 
+  (Mx, My, Mz) volume fields. Added a check for the MRCZ version tag, and if 
+  an older file is found, it defaults to ``slices == 1``, i.e. one 2D frame 
+  per element in the returned list.
+  - In order to suppress the warning message, files can be read into memory and 
+    re-saved. A utility script for batch processing is provided in 
+    ``utils\update_mrcz_0.5.0.py``.
+
 0.5.0
 -----
 * Added support for lists of 3D `numpy.ndarray` objects. This is largely intended 
