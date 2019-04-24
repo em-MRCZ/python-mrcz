@@ -421,8 +421,7 @@ def readMRCHeader(MRCfilename, slices, endian='le', fileConvention = 'ccpem', pi
     else:
         endchar = '>'
 
-    dtype_i4 = np.dtype(endchar + 'i4')
-    dtype_f4 = np.dtype(endchar + 'f4')
+
     header = {}
     with open(MRCfilename, 'rb') as f:
         # diagStr = ''
@@ -439,6 +438,9 @@ def readMRCHeader(MRCfilename, slices, endian='le', fileConvention = 'ccpem', pi
                 endchar = '>' 
             else:
                 endchar = '<'
+
+        dtype_i4 = np.dtype(endchar + 'i4')
+        dtype_f4 = np.dtype(endchar + 'f4')
         
         # Extract compressor from dtype > MRC_COMP_RATIO
         header['compressor'] = COMPRESSOR_ENUM[np.floor_divide(header['MRCtype'], MRC_COMP_RATIO)]
