@@ -417,10 +417,10 @@ def readMRCHeader(MRCfilename, slices, endian='le', fileConvention = 'ccpem', pi
     '''
     if endian == 'le':
         endchar = '<'
-
     else:
         endchar = '>'
-
+    dtype_i4 = np.dtype(endchar + 'i4')
+    dtype_f4 = np.dtype(endchar + 'f4')
 
     header = {}
     with open(MRCfilename, 'rb') as f:
@@ -432,15 +432,14 @@ def readMRCHeader(MRCfilename, slices, endian='le', fileConvention = 'ccpem', pi
         # Hack to fix lack of standard endian indication in the file header
         if header['MRCtype'] > 16000000: 
             # Endianess found to be backward
-            header['MRCtype'] = int(np.asarray( header['MRCtype'] ).byteswap()[0])
+            header['MRCtype'] = int(np.asarray(header['MRCtype']).byteswap()[0])
             header['dimensions'] = header['dimensions'].byteswap()
             if endchar == '<':
                 endchar = '>' 
             else:
                 endchar = '<'
-
-        dtype_i4 = np.dtype(endchar + 'i4')
-        dtype_f4 = np.dtype(endchar + 'f4')
+            dtype_i4 = np.dtype(endchar + 'i4')
+            dtype_f4 = np.dtype(endchar + 'f4')
         
         # Extract compressor from dtype > MRC_COMP_RATIO
         header['compressor'] = COMPRESSOR_ENUM[np.floor_divide(header['MRCtype'], MRC_COMP_RATIO)]
@@ -451,13 +450,13 @@ def readMRCHeader(MRCfilename, slices, endian='le', fileConvention = 'ccpem', pi
         
         if fileConvention == 'eman2':
             try:
-                header['dtype'] = EMAN2_ENUM[ header['MRCtype'] ]
+                header['dtype'] = EMAN2_ENUM[header['MRCtype']]
             except:
                 raise ValueError('Error: unrecognized EMAN2-MRC data type = ' + str(header['MRCtype']))
                 
         elif fileConvention == 'ccpem': # Default is CCPEM
             try:
-                header['dtype'] = CCPEM_ENUM[ header['MRCtype'] ]
+                header['dtype'] = CCPEM_ENUM[header['MRCtype']]
             except:
                 raise ValueError('Error: unrecognized CCPEM-MRC data type = ' + str(header['MRCtype']))
         else:
@@ -468,6 +467,9 @@ def readMRCHeader(MRCfilename, slices, endian='le', fileConvention = 'ccpem', pi
 
         # slices is z-axis per frame for list-of-arrays representation
         if slices is None:
+            f.seek(28)
+            m_values = np.fromfile(f, dtype=dtype_i4, count=3)
+            print(f'DEBUG: m_values in {MRCfilename} are {m_values}')
             f.seek(36)
             slices = int(np.fromfile(f, dtype=dtype_i4, count=1))
 
