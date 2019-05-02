@@ -508,7 +508,7 @@ def readMRCHeader(MRCfilename, slices, endian='le', fileConvention = 'ccpem', pi
             # check where we force slices to be 1 (i.e. we assume it is a 
             # stack of 2D images).
             if mrcz_version is not None and mrcz_version < StrictVersion('0.5.0'):
-                logger.warning('MRCZ version < 0.5.0, assuming slices == 1.')
+                logger.warning('MRCZ version < 0.5.0 for file {}, assuming slices == 1.'.format(MRCfilename))
                 slices = 1
             else:
                 f.seek(36)
