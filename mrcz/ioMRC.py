@@ -40,13 +40,27 @@ except ImportError:
     # Can be ImportError or ModuleNotFoundError depending on the Python version,
     # but ModuleNotFoundError is a child of ImportError and is still caught.
     BLOSC_PRESENT = False
-    logger.info( '`blosc` meta-compression library not found, file compression disabled.' )
+    logger.info('`blosc` meta-compression library not found, file compression disabled.')
     DEFAULT_N_THREADS = 1
 try: 
     import rapidjson as json
 except ImportError:
     import json
-    logger.info( '`python-rapidjson` not found, using builtin `json` instead.' )
+    logger.info('`python-rapidjson` not found, using builtin `json` instead.')
+
+def _defaultMetaSerialize(value):
+    """
+    Is called by `json.dumps()` whenever it encounters an object it does 
+    not know how to serialize.
+    """
+    if hasattr(value, '__array_interface__'):
+        # Checking for '__array_interface__' also sanitizes numpy scalars
+        # like np.float32 or np.int32
+        return value.tolist()
+    else:
+        raise TypeError('Unhandled type for JSON serialization: {}'.format(type(value)))
+
+# Do we also want to convert long lists to np.ndarrays?
 
 # Buffer for file I/O
 # Quite arbitrary, in bytes (hand-optimized)
@@ -1089,25 +1103,7 @@ def writeMRCHeader(f, header, slices, endchar='<'):
     
     # Extended header, if meta is not None
     if isinstance(header['meta'], dict):
-        # Encode metadata as bytes with UTF-8
-        for key, value in header['meta'].items():
-            # Sanitize types that `python-rapidjson` and `json` don't understand.
-            # Should we make a copy of `meta` in this case?  We are modifying 
-            # the passed data.
-            if hasattr(value, '__array_interface__'):
-                # Checking for '__array_interface__' also sanitises numpy scalars
-                # like np.float32 or np.int32
-                header['meta'][key] = value.tolist()
-
-        try:
-            jsonMeta = json.dumps(header['meta']).encode('utf-8')
-        except TypeError as e:
-            logger.error('Meta types:')
-            for key, value in header['meta'].items():
-                logger.error('    {}: {}'.format(key, type(value)))
-                if hasattr(value, '__len__'):
-                    logger.error('        ' + str([type(thing) for thing in value]))
-            raise TypeError('Some value in the meta-data is not JSONable; typically this is a buried NumPy array')
+        jsonMeta = json.dumps(header['meta'], default=_defaultMetaSerialize).encode('utf-8')
 
         jsonLen = len(jsonMeta)
         # Length of extended header

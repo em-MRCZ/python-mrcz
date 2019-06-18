@@ -1,3 +1,11 @@
+0.5.2
+-----
+* Improved on serialization of non-standard (i.e. NumPy) types in JSON-ized 
+  meta-data by making use of the `default` callable in `json.dumps`. In particular
+  deeply nested NumPy types should now serialize without erroring. Note that 
+  there is no support for complex numbers in JSON meta-data, as JSON itself 
+  does not support it by default.
+
 0.5.1
 -----
 * Versions of MRCZ <= 0.4.1 were improperly writing the dimensions into the 

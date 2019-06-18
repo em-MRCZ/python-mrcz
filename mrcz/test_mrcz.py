@@ -388,6 +388,34 @@ class PythonMrczTests(unittest.TestCase):
         
         npt.assert_array_almost_equal(c64_mage[0], rereadMage[0])
         npt.assert_array_almost_equal(c64_mage[1], rereadMage[1])
+
+    def test_numpy_metadata(self):
+        log.info('Testing NumPy types in meta-data')
+        meta = {
+            'zoo': np.float64(1.0),
+            'foo': [
+                np.ones(16),
+                np.ones(16),
+                np.ones(16)],
+            'bar': {
+                # Note: no support in JSON for complex numbers.
+                'moo': np.uint64(42),
+                'boo': np.full(8, 3, dtype=np.int32)
+            }
+        }
+        mage = np.zeros([32, 32],  dtype=np.float32)
+        mrcName = os.path.join(tmpDir, 'testMage.mrc')
+        mrcz.writeMRC(mage, mrcName, meta=meta)
+
+        re_mage, re_meta = mrcz.readMRC(mrcName)
+        #  `tempfile.TemporaryDirectory` would be better but Python 2.7 doesn't support it
+        try: os.remove(mrcName)
+        except IOError: log.info('Warning: file {} left on disk'.format(mrcName))
+
+        npt.assert_array_equal(re_meta['foo'][0], meta['foo'][0])
+        npt.assert_array_equal(re_meta['bar']['boo'], meta['bar']['boo'])
+
+
     
 cmrczProg = which('mrcz')
 if cmrczProg is None:
