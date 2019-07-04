@@ -443,7 +443,7 @@ def readBloscHeader(filehandle):
     return ([nbytes, blocksize, ctbytes], [version, versionlz, flags, typesize])
     
     
-def readMRCHeader(MRCfilename, slices, endian='le', fileConvention = 'ccpem', pixelunits=u'\\AA'):
+def readMRCHeader(MRCfilename, slices=None, endian='le', fileConvention = 'ccpem', pixelunits=u'\\AA'):
     '''
     Reads in the first 1024 bytes from an MRC file and parses it into a Python 
     dictionary, yielding header information. This function is not intended to be 
@@ -515,6 +515,7 @@ def readMRCHeader(MRCfilename, slices, endian='le', fileConvention = 'ccpem', pi
         header['dtype'] = endchar + header['dtype']
 
         # slices is z-axis per frame for list-of-arrays representation
+
         if slices is None:
             # We had a bug in version <= 0.4.1 where we wrote the dimensions 
             # into both (Nx, Ny, Nz) AND (Mx, My, Mz), therefore the slicing 
@@ -813,11 +814,11 @@ def writeMRC(input_image, MRCfilename, meta=None, endian='le', dtype=None,
     else: # We are going to append to an already existing file:
         # So we try to figure out its header with 'CCPEM' or 'eman2' file conventions:
         try:
-            header, slices = readMRCHeader(MRCfilename, endian, fileConvention='CCPEM', pixelunits=pixelunits)
+            header, slices = readMRCHeader(MRCfilename, slices=None, endian=endian, fileConvention='CCPEM', pixelunits=pixelunits)
 
         except ValueError:
             try:
-                header, slices = readMRCHeader(MRCfilename, endian, fileConvention='eman2', pixelunits=pixelunits)
+                header, slices = readMRCHeader(MRCfilename, slices=None, endian=endian, fileConvention='eman2', pixelunits=pixelunits)
             except ValueError:
             # If neither 'CCPEM' nor 'eman2' formats satisfy:
                 raise ValueError('Error: unrecognized MRC type for file: %s ' % MRCfilename)
@@ -859,6 +860,7 @@ def writeMRC(input_image, MRCfilename, meta=None, endian='le', dtype=None,
 
     else:
         offset = 0
+
         
     __MRCExport(input_image, header, MRCfilename, slices, 
                 endchar=endchar, offset=offset, idxnewfile=idxnewfile)
@@ -1025,6 +1027,7 @@ def writeMRCHeader(f, header, slices, endchar='<'):
     # Print MX, MY, MZ, the sampling. We only allow for slicing along the z-axis,
     # e.g. for multi-channel STEM.
     f.seek(36)
+
     np.int32(slices).astype(dtype_i4).tofile(f)
 
     # Print cellsize = pixelsize * dimensions
