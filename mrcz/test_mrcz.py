@@ -415,6 +415,27 @@ class PythonMrczTests(unittest.TestCase):
         npt.assert_array_equal(re_meta['foo'][0], meta['foo'][0])
         npt.assert_array_equal(re_meta['bar']['boo'], meta['bar']['boo'])
 
+    def test_MRC_append(self):
+        log.info('Testing appending to existing MRC stack, float-32')
+        f32_stack = [np.random.normal(size=[128,96]).astype(np.float32) for I in range(2)]
+
+        mrcName = os.path.join(tmpDir, 'testStack.mrcs')
+                
+        pixelsize = [5.6, 3.4]
+        for j,I in enumerate(f32_stack):
+            mrcz.writeMRC(I, mrcName, pixelsize=pixelsize, compressor=None, idx = j)
+                                
+        rereadMage, _ = mrcz.readMRC(mrcName, pixelunits=u'\AA')
+
+        try: os.remove(mrcName)
+        except IOError: log.info('Warning: file {} left on disk'.format(mrcName))
+        
+        assert(rereadMage.shape[0] == len(f32_stack))
+
+        for testFrame, rereadFrame in zip(f32_stack, rereadMage):
+            assert(testFrame.dtype == rereadFrame.dtype)
+            npt.assert_array_almost_equal(testFrame, rereadFrame)
+
 
     
 cmrczProg = which('mrcz')
