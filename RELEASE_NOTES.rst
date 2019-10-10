@@ -1,3 +1,8 @@
+0.5.3
+-----
+* Ricardo Righetto added the means to append 
+* Support for Python 3.4 was dropped as it is past end-of-life by Python.org.
+
 0.5.2
 -----
 * Improved on serialization of non-standard (i.e. NumPy) types in JSON-ized 

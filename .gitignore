@@ -6,3 +6,4 @@ mrcz.wiki
 *.pyc
 doc/_build
 mrcz/__version__.py
+.vscode

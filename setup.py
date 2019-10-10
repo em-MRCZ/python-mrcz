@@ -31,8 +31,8 @@ if sys.version_info[0] == 2:
         install_requires.append('futures') # For concurrent.futures we need the backport in Py2.7
 
 elif sys.version_info[0] == 3:
-    if sys.version_info[1] < 4:
-        exit_with_error("You need Python 3.4 or greater to install mrcz")
+    if sys.version_info[1] < 5:
+        exit_with_error("You need Python 3.5 or greater to install mrcz")
 
 else:
     exit_with_error("You need Python 2.7/3.4 or greater to install mrcz")
@@ -58,7 +58,6 @@ Intended Audience :: Science/Research
 License :: OSI Approved :: BSD License
 Programming Language :: Python
 Programming Language :: Python :: 2.7
-Programming Language :: Python :: 3.4
 Programming Language :: Python :: 3.5
 Programming Language :: Python :: 3.6
 Programming Language :: Python :: 3.7
@@ -81,7 +80,7 @@ blocked and multi-threaded way to take advantage of modern multi-core CPUs.
 
 """,
       classifiers = [c for c in classifiers.split("\n") if c],
-      author = 'Robert A. McLeod',
+      author = 'Robert A. McLeod, Ricardo Righetto',
       author_email = 'robbmcleod@gmail.com',
       url = 'http://github.com/em-MRCZ/python-mrcz',
       license = 'https://opensource.org/licenses/BSD-3-Clause',
