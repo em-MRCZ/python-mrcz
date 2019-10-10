@@ -1,6 +1,6 @@
 0.5.3
 -----
-* Ricardo Righetto added the means to append 
+* Ricardo Righetto added the means to append frames to a stack.
 * Support for Python 3.4 was dropped as it is past end-of-life by Python.org.
 
 0.5.2
