@@ -1026,9 +1026,14 @@ def writeMRCHeader(f, header, slices, endchar='<'):
 
     # Print MX, MY, MZ, the sampling. We only allow for slicing along the z-axis,
     # e.g. for multi-channel STEM.
-    f.seek(36)
+    
+    # We cannot have slices = 0 e.g. when writing a NumPy array to an MRC(Z) file de novo.
+    if slices == 0:
+        slices = 1
 
-    np.int32(slices).astype(dtype_i4).tofile(f)
+    sampling = [header['dimensions'][0], header['dimensions'][1], header['dimensions'][2]/slices]
+    sampling = np.flipud(sampling)
+    np.array(sampling, dtype=dtype_i4).tofile(f)
 
     # Print cellsize = pixelsize * dimensions
     # '\AA' will eventually be deprecated (probably in Python 3.7/8), please cease using it.

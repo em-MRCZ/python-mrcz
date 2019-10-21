@@ -12,6 +12,7 @@ import os, os.path, sys
 import subprocess as sub
 import tempfile
 import unittest
+import mrcfile
 from logging import Logger
 log = Logger(__name__)
         
@@ -435,6 +436,42 @@ class PythonMrczTests(unittest.TestCase):
         for testFrame, rereadFrame in zip(f32_stack, rereadMage):
             assert(testFrame.dtype == rereadFrame.dtype)
             npt.assert_array_almost_equal(testFrame, rereadFrame)
+
+    def test_mrcfile_consistency(self):
+        log.info('Testing consistency between MRCZ and mrcfile regarding dimensions and sampling, float-32')
+
+        NX = 32
+        NY = 64
+        NZ = 128
+
+        # It's a particular case when MX == NZ, etc, but we just want to test if MX/MY/MZ and the pixel size are being written correctly
+        MX = NX
+        MY = NY
+        MZ = NZ 
+        f32_vol = np.random.normal(size=[NZ,NY,NX]).astype(np.float32)
+
+        mrcName = os.path.join(tmpDir, 'testVol.mrc')
+                
+        pixelsize = [5.6, 3.4, 1.3]
+
+        mrcz.writeMRC(f32_vol, mrcName, pixelsize=pixelsize, compressor=None)
+                                
+        # Now let's read the file with mrcfile and check if things are how they should be:
+        with mrcfile.open( mrcName, mode = 'r+') as mrc:
+
+            # Assert dimensions
+            print(mrc.header.mx, MX)
+            assert(mrc.header.mx == MX)
+            assert(mrc.header.my == MY)
+            assert(mrc.header.mz == MZ)
+
+            # Assert pixelsize
+            assert(np.isclose(mrc.voxel_size.x, pixelsize[2]))
+            assert(np.isclose(mrc.voxel_size.y, pixelsize[1]))
+            assert(np.isclose(mrc.voxel_size.z, pixelsize[0]))
+
+        try: os.remove(mrcName)
+        except IOError: log.info('Warning: file {} left on disk'.format(mrcName))
 
 
     

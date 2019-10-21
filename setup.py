@@ -22,6 +22,7 @@ def exit_with_error(message):
 # Setup requirements
 setup_requires = []
 install_requires = ['numpy']
+test_requires = ['mrcfile']
 
 # Check for Python
 if sys.version_info[0] == 2:
@@ -87,5 +88,6 @@ blocked and multi-threaded way to take advantage of modern multi-core CPUs.
       platforms = ['any'],
       setup_requires=setup_requires,
       install_requires=install_requires,
+      test_requires=test_requires,
       packages = ['mrcz'],
 )
