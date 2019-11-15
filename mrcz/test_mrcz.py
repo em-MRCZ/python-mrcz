@@ -13,6 +13,7 @@ import subprocess as sub
 import tempfile
 import unittest
 from logging import Logger
+from enum import Enum
 log = Logger(__name__)
         
 def which(program):
@@ -414,6 +415,28 @@ class PythonMrczTests(unittest.TestCase):
 
         npt.assert_array_equal(re_meta['foo'][0], meta['foo'][0])
         npt.assert_array_equal(re_meta['bar']['boo'], meta['bar']['boo'])
+
+    def test_enum_metadata(self):
+        log.info('Testing Enum types in meta-data')
+        class Axis(Enum):
+            X = 0
+            Y = 1
+
+        meta = {
+            'axes': [Axis.Y, Axis.X]
+        }
+
+        mage = np.zeros([4, 4], dtype=np.float32)
+        mrcName = os.path.join(tmpDir, 'testMage.mrc')
+        mrcz.writeMRC(mage, mrcName, meta=meta)
+
+        re_mage, re_meta = mrcz.readMRC(mrcName)
+        #  `tempfile.TemporaryDirectory` would be better but Python 2.7 doesn't support it
+        try: os.remove(mrcName)
+        except IOError: log.info('Warning: file {} left on disk'.format(mrcName))
+
+        assert('Enum.Axis.X' in re_meta['axes'])
+        assert('Enum.Axis.Y' in re_meta['axes'])
 
     def test_MRC_append(self):
         log.info('Testing appending to existing MRC stack, float-32')

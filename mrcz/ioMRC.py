@@ -18,6 +18,8 @@ import os, os.path, sys
 import numpy as np
 import threading
 import struct
+from enum import Enum
+
 try:
     from concurrent.futures import ThreadPoolExecutor
 except ImportError as e:
@@ -51,12 +53,18 @@ except ImportError:
 def _defaultMetaSerialize(value):
     """
     Is called by `json.dumps()` whenever it encounters an object it does 
-    not know how to serialize.
+    not know how to serialize. Currently handles:
+
+    1. `numpy` scalars as well as `ndarray`
+    2. Python `Enum` objects which are serialized as strings in the form 
+       ``'Enum.{object.__class__.__name__}.{object.name}'``. E.g. ``'Enum.Axis.X'``.
     """
     if hasattr(value, '__array_interface__'):
         # Checking for '__array_interface__' also sanitizes numpy scalars
         # like np.float32 or np.int32
         return value.tolist()
+    elif isinstance(value, Enum):
+        return 'Enum.{}.{}'.format(value.__class__.__name__, value.name)
     else:
         raise TypeError('Unhandled type for JSON serialization: {}'.format(type(value)))
 
