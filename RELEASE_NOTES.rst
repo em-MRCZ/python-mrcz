@@ -1,3 +1,7 @@
+0.5.5
+-----
+* TODO
+
 0.5.4
 -----
 * Added support for serialization of Python Enum objects in JSON serialization 
