@@ -1,3 +1,8 @@
+0.5.4
+-----
+* Added support for serialization of Python Enum objects in JSON serialization 
+  of meta-data.
+
 0.5.3
 -----
 * Ricardo Righetto added the means to append frames to a stack.

@@ -742,7 +742,7 @@ def writeMRC(input_image, MRCfilename, meta=None, endian='le', dtype=None,
     # We now check if we have to create a new header (i.e. new file) or not. If 
     # the file exists, but idx is 'None', it will be replaced by a new file 
     # with new header anyway:
-    if os.path.isfile( MRCfilename ):
+    if os.path.isfile(MRCfilename):
         if idx == None:
             idxnewfile = True
         else:
@@ -753,9 +753,9 @@ def writeMRC(input_image, MRCfilename, meta=None, endian='le', dtype=None,
     
     if idxnewfile:
         if dtype == 'uint4' and compressor != None:
-            raise TypeError( 'uint4 packing is not compatible with compression, use int8 datatype.' )
+            raise TypeError('uint4 packing is not compatible with compression, use int8 datatype.')
             
-        header = {'meta': meta }
+        header = {'meta': meta}
         if dtype == None:
             if slices > 0:
                 header['dtype'] = endchar + input_image[0].dtype.descr[0][1].strip('<>|')
