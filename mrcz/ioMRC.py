@@ -55,11 +55,15 @@ def _defaultMetaSerialize(value):
     Is called by `json.dumps()` whenever it encounters an object it does 
     not know how to serialize. Currently handles:
 
+    1. Any object with a `serialize()` method, which is assumed to be a helper
+       method.
     1. `numpy` scalars as well as `ndarray`
     2. Python `Enum` objects which are serialized as strings in the form 
        ``'Enum.{object.__class__.__name__}.{object.name}'``. E.g. ``'Enum.Axis.X'``.
     """
-    if hasattr(value, '__array_interface__'):
+    if hasattr(value, 'serialize'):
+        return value.serialize()
+    elif hasattr(value, '__array_interface__'):
         # Checking for '__array_interface__' also sanitizes numpy scalars
         # like np.float32 or np.int32
         return value.tolist()
@@ -332,8 +336,10 @@ def readMRC(MRCfilename, idx=None, endian='le',
                 dtype = header['dtype']
 
                 # np.fromfile advances the file pointer `f` for us.
-                image = [np.squeeze(np.fromfile(f, dtype=dtype, count=frame_size).reshape((slices, dims[1], dims[2]))) \
-                        for imSlice in range(n_frames)]
+                buffer = np.fromfile(f, dtype=dtype, count=frame_size)
+                buffer = buffer.reshape((slices, dims[1], dims[2]))
+                image = [np.squeeze(buffer.reshape((slices, dims[1], dims[2]))) for imSlice in range(n_frames)]
+                # image = [np.squeeze(np.fromfile(f, dtype=dtype, count=frame_size).reshape((slices, dims[1], dims[2]))) for imSlice in range(n_frames)]
                
             else: # monolithic NumPy ndarray
                 image = np.fromfile(f, dtype=header['dtype'], count=np.product(dims))
@@ -542,7 +548,6 @@ def readMRCHeader(MRCfilename, slices=None, endian='le', fileConvention = 'ccpem
         cellsize = np.fromfile(f, dtype=dtype_f4, count=3)
         header['pixelsize'] = np.flipud( cellsize ) / header['dimensions']
         # MRC is Angstroms by convention
-
         header['pixelunits'] = pixelunits
             
         # '\AA' will eventually be deprecated, please cease using it.
@@ -586,8 +591,10 @@ def readMRCHeader(MRCfilename, slices=None, endian='le', fileConvention = 'ccpem
         # Now read in JSON meta-data if present
         if 'metaId' in header and header['metaId'] == b'json':
                 f.seek(DEFAULT_HEADER_LEN)
-                header.update(json.loads(f.read(header['extendedBytes'] ).decode('utf-8')))
-
+                meta = json.loads(f.read(header['extendedBytes'] ).decode('utf-8'))
+                for key, value in meta.items():
+                    if key not in header:
+                        header[key] = value
         return header, slices
         
 def writeMRC(input_image, MRCfilename, meta=None, endian='le', dtype=None, 
@@ -768,6 +775,7 @@ def writeMRC(input_image, MRCfilename, meta=None, endian='le', dtype=None,
         if not header['dtype'].strip('<>|') in REVERSE_CCPEM_ENUM:
             raise TypeError('ioMRC.MRCExport: Unsupported dtype cast for MRC %s' % header['dtype'])
             
+        print('assign A')
         header['dimensions'] = dims
         
         header['pixelsize'] = pixelsize
@@ -1035,7 +1043,6 @@ def writeMRCHeader(f, header, slices, endchar='<'):
     # Print MX, MY, MZ, the sampling. We only allow for slicing along the z-axis,
     # e.g. for multi-channel STEM.
     f.seek(36)
-
     np.int32(slices).astype(dtype_i4).tofile(f)
 
     # Print cellsize = pixelsize * dimensions

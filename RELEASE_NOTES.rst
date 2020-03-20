@@ -1,6 +1,8 @@
 0.5.5
 -----
-* TODO
+* Meta-data with keys that match those used in the header could accidently 
+  overwrite critical values, such as 'dimensions'. Any keys in the JSON 
+  meta-dictionary that overlap with the standard values are now ignored.
 
 0.5.4
 -----
