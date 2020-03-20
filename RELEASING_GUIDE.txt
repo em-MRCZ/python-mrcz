@@ -35,7 +35,7 @@ To build the `conda-forge` recipe first copy the SHA hash from the latest releas
 
     https://pypi.org/project/mrcz/
 
-Then in the `staged-recipes` git repo you need to modify `recipes/mrcz/meta.yml`
+Then in the `staged-recipes` git repo you need to modify `recipe/meta.yml`
 to:
     - Bump the version 
     - Paste in the new SHA hash
