@@ -3,6 +3,7 @@
 * Meta-data with keys that match those used in the header could accidently 
   overwrite critical values, such as 'dimensions'. Any keys in the JSON 
   meta-dictionary that overlap with the standard values are now ignored.
+* Integration tests are now performed for Python 3.8.
 
 0.5.4
 -----
