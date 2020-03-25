@@ -336,10 +336,11 @@ def readMRC(MRCfilename, idx=None, endian='le',
                 dtype = header['dtype']
 
                 # np.fromfile advances the file pointer `f` for us.
-                buffer = np.fromfile(f, dtype=dtype, count=frame_size)
-                buffer = buffer.reshape((slices, dims[1], dims[2]))
-                image = [np.squeeze(buffer.reshape((slices, dims[1], dims[2]))) for imSlice in range(n_frames)]
-                # image = [np.squeeze(np.fromfile(f, dtype=dtype, count=frame_size).reshape((slices, dims[1], dims[2]))) for imSlice in range(n_frames)]
+                image = []
+                for I in range(n_frames):
+                    buffer = np.fromfile(f, dtype=dtype, count=frame_size)
+                    buffer = buffer.reshape((slices, dims[1], dims[2])).squeeze()
+                    image.append(buffer)
                
             else: # monolithic NumPy ndarray
                 image = np.fromfile(f, dtype=header['dtype'], count=np.product(dims))
