@@ -775,7 +775,6 @@ def writeMRC(input_image, MRCfilename, meta=None, endian='le', dtype=None,
         if not header['dtype'].strip('<>|') in REVERSE_CCPEM_ENUM:
             raise TypeError('ioMRC.MRCExport: Unsupported dtype cast for MRC %s' % header['dtype'])
             
-        print('assign A')
         header['dimensions'] = dims
         
         header['pixelsize'] = pixelsize
