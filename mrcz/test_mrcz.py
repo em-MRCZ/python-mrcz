@@ -201,8 +201,7 @@ class PythonMrczTests(unittest.TestCase):
 
 
     def test_list_2d(self):
-        testFrame = np.random.uniform(high=10, size=[128,64]).astype('int8')
-        testMage = [testFrame] * 3
+        testMage = [np.random.uniform(high=10, size=[32,16]).astype('int8')] * 3
 
         mrcName = os.path.join(tmpDir, 'testMage.mrcz')
                 
@@ -222,8 +221,7 @@ class PythonMrczTests(unittest.TestCase):
             npt.assert_array_almost_equal(testFrame, rereadFrame)
     
     def test_list_2d_compressed(self):
-        testFrame = np.random.uniform(high=10, size=[128,64]).astype('int8')
-        testMage = [testFrame] * 3
+        testMage = [np.random.uniform(high=10, size=[32,16]).astype('int8')] * 3
 
         mrcName = os.path.join(tmpDir, 'testMage.mrcz')
                 
@@ -244,8 +242,7 @@ class PythonMrczTests(unittest.TestCase):
             npt.assert_array_almost_equal(testFrame, rereadFrame)
 
     def test_list_3d(self):
-        testFrame = np.random.uniform(high=10, size=[3,32,32]).astype('int8')
-        testMage = [testFrame] * 3
+        testMage = [np.random.uniform(high=10, size=[3,32,32]).astype('int8')] * 3
         mrcName = os.path.join(tmpDir, 'testMage.mrcz')
         pixelsize = [5.6, 3.4]
 
@@ -264,8 +261,7 @@ class PythonMrczTests(unittest.TestCase):
             npt.assert_array_almost_equal(testFrame, rereadFrame)
 
     def test_list_3d_compressed(self):
-        testFrame = np.random.uniform(high=10, size=[3,32,32]).astype('int8')
-        testMage = [testFrame] * 3
+        testMage = [np.random.uniform(high=10, size=[3,32,32]).astype('int8')] * 3
         mrcName = os.path.join(tmpDir, 'testMage.mrcz')
         pixelsize = [5.6, 3.4]
 
