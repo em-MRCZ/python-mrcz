@@ -542,7 +542,7 @@ def readMRCHeader(MRCfilename, slices=None, endian='le', fileConvention = 'ccpem
                 slices = 1
             else:
                 f.seek(36)
-                slices = int(np.fromfile(f, dtype=dtype_i4, count=1))
+                slices = int(np.fromfile(f, dtype=dtype_i4, count=1)[0])
 
         # Read in pixelsize
         f.seek(40)
@@ -572,7 +572,7 @@ def readMRCHeader(MRCfilename, slices=None, endian='le', fileConvention = 'ccpem
 
         # Size of meta-data
         f.seek(92)
-        header['extendedBytes'] = int(np.fromfile(f, dtype=dtype_i4, count=1))
+        header['extendedBytes'] = int(np.fromfile(f, dtype=dtype_i4, count=1)[0])
         if header['extendedBytes'] > 0:
             f.seek(104)
             header['metaId'] = f.read(4)
