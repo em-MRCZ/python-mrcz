@@ -711,12 +711,12 @@ def writeMRC(input_image, MRCfilename, meta=None, endian='le', dtype=None,
 
             if z_slice.dtype == np.float64 or z_slice.dtype == float:
                 if not WARNED_ABOUT_CASTING_F64:
-                    logger.warn('Casting {} to `numpy.float32`, further warnings will be suppressed.'.format(MRCfilename))
+                    logger.warning('Casting {} to `numpy.float32`, further warnings will be suppressed.'.format(MRCfilename))
                     WARNED_ABOUT_CASTING_F64 = True
                 input_image[J] = z_slice.astype(np.float32)
             elif z_slice.dtype == np.complex128:
                 if not WARNED_ABOUT_CASTING_C128:
-                    logger.warn('Casting {} to `numpy.complex64`, further warnings will be suppressed.'.format(MRCfilename))
+                    logger.warning('Casting {} to `numpy.complex64`, further warnings will be suppressed.'.format(MRCfilename))
                     WARNED_ABOUT_CASTING_C128 = True
                 input_image[J] = z_slice.astype(np.complex64)
             else:
@@ -732,12 +732,12 @@ def writeMRC(input_image, MRCfilename, meta=None, endian='le', dtype=None,
         # Cast float64 -> float32, and complex128 -> complex64
         if input_image.dtype == np.float64 or input_image.dtype == float:
             if not WARNED_ABOUT_CASTING_F64:
-                logger.warn('Casting {} to `numpy.float64`'.format(MRCfilename))
+                logger.warning('Casting {} to `numpy.float64`'.format(MRCfilename))
                 WARNED_ABOUT_CASTING_F64 = True
             input_image = input_image.astype(np.float32)
         elif input_image.dtype == np.complex128:
             if not WARNED_ABOUT_CASTING_C128:
-                logger.warn('Casting {} to `numpy.complex64`'.format(MRCfilename))
+                logger.warning('Casting {} to `numpy.complex64`'.format(MRCfilename))
                 WARNED_ABOUT_CASTING_C128 = True
             input_image = input_image.astype(np.complex64)
 
