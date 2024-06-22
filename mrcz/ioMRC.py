@@ -318,7 +318,7 @@ def readMRC(MRCfilename, idx=None, endian='le',
                 header['dimensions'][0] = n
 
                 # This offset will be applied to f.seek():
-                offset = idx * np.product(header['dimensions'][1:])*np.dtype(header['dtype']).itemsize
+                offset = idx * np.prod(header['dimensions'][1:])*np.dtype(header['dtype']).itemsize
 
         else:
             offset = 0
@@ -331,7 +331,7 @@ def readMRC(MRCfilename, idx=None, endian='le',
         else: # Load entire file into memory
             dims = header['dimensions']
             if slices > 0: # List of NumPy 2D-arrays
-                frame_size = slices * np.product(dims[1:])
+                frame_size = slices * np.prod(dims[1:])
                 n_frames = dims[0] // slices
                 dtype = header['dtype']
 
@@ -343,12 +343,12 @@ def readMRC(MRCfilename, idx=None, endian='le',
                     image.append(buffer)
                
             else: # monolithic NumPy ndarray
-                image = np.fromfile(f, dtype=header['dtype'], count=np.product(dims))
+                image = np.fromfile(f, dtype=header['dtype'], count=np.prod(dims))
 
                 if header['MRCtype'] == 101:
                     # Seems the 4-bit is interlaced ...
                     interlaced_image = image
-                    image = np.empty(np.product(dims), dtype=header['dtype'])
+                    image = np.empty(np.prod(dims), dtype=header['dtype'])
                     image[0::2] = np.left_shift(interlaced_image,4) / 15
                     image[1::2] = np.right_shift(interlaced_image,4)
 
@@ -429,7 +429,7 @@ def __MRCZImport(f, header, slices, endian='le', fileConvention='ccpem',
             raise NotImplementedError('MRC type 101 (uint4) not supported with return as `list`')
         interlaced_image = image
             
-        image = np.empty(np.product(header['dimensions']), dtype=dtype)
+        image = np.empty(np.prod(header['dimensions']), dtype=dtype)
         # Bit-shift and Bit-and to seperate decimated pixels
         image[0::2] = np.left_shift(interlaced_image, 4) / 15
         image[1::2] = np.right_shift(interlaced_image, 4)
@@ -872,7 +872,7 @@ def writeMRC(input_image, MRCfilename, meta=None, endian='le', dtype=None,
             header['dimensions'] = np.array([idx + input_image.shape[0], header['dimensions'][1], header['dimensions'][2]])
 
         # This offset will be applied to f.seek():
-        offset = idx * np.product(header['dimensions'][1:]) * np.dtype(header['dtype']).itemsize
+        offset = idx * np.prod(header['dimensions'][1:]) * np.dtype(header['dtype']).itemsize
 
     else:
         offset = 0
