@@ -282,16 +282,16 @@ def readMRC(MRCfilename, idx=None, endian='le',
         
         if ( (header['compressor'] in REVERSE_COMPRESSOR_ENUM) 
             and (REVERSE_COMPRESSOR_ENUM[header['compressor']] > 0) 
-            and idx == None ):
+            and idx is None ):
             return __MRCZImport(f, header, slices, endian=endian, fileConvention=fileConvention, 
                                 n_threads=n_threads)
         # Else load as uncompressed MRC file
 
-        if idx != None:
+        if idx is not None:
         # If specific images were requested:
         # TO DO: add support to read all images within a range at once
 
-            if header['compressor'] != None:
+            if header['compressor'] is not None:
                 raise RuntimeError('Reading from arbitrary positions not supported for compressed files. Compressor = %s'%header['compressor'])
             if np.isscalar( idx ):
                 indices = np.array([idx, idx], dtype='int')
@@ -370,7 +370,7 @@ def __MRCZImport(f, header, slices, endian='le', fileConvention='ccpem',
     if not BLOSC_PRESENT:
         raise ImportError( '`blosc` is not installed, cannot decompress file.' )
         
-    if n_threads == None:
+    if n_threads is None:
         blosc.nthreads = DEFAULT_N_THREADS
     else:
         blosc.nthreads = n_threads
@@ -751,7 +751,7 @@ def writeMRC(input_image, MRCfilename, meta=None, endian='le', dtype=None,
     # the file exists, but idx is 'None', it will be replaced by a new file 
     # with new header anyway:
     if os.path.isfile(MRCfilename):
-        if idx == None:
+        if idx is None:
             idxnewfile = True
         else:
             idxnewfile = False
@@ -760,11 +760,11 @@ def writeMRC(input_image, MRCfilename, meta=None, endian='le', dtype=None,
 
     
     if idxnewfile:
-        if dtype == 'uint4' and compressor != None:
+        if dtype == 'uint4' and compressor is not None:
             raise TypeError('uint4 packing is not compatible with compression, use int8 datatype.')
             
         header = {'meta': meta}
-        if dtype == None:
+        if dtype is None:
             if slices > 0:
                 header['dtype'] = endchar + input_image[0].dtype.descr[0][1].strip('<>|')
             else:
@@ -816,7 +816,7 @@ def writeMRC(input_image, MRCfilename, meta=None, endian='le', dtype=None,
         
         header['compressor'] = compressor
         header['clevel'] = clevel
-        if n_threads == None and BLOSC_PRESENT:
+        if n_threads is None and BLOSC_PRESENT:
             n_threads = DEFAULT_N_THREADS
         header['n_threads'] = n_threads
         
@@ -848,8 +848,8 @@ def writeMRC(input_image, MRCfilename, meta=None, endian='le', dtype=None,
             header['meta'] = meta
 
     # Now that we have a proper header, we go into the details of writing to a specific position:
-    if idx != None:
-        if header['compressor'] != None:
+    if idx is not None:
+        if header['compressor'] is not None:
             raise RuntimeError('Writing at arbitrary positions not supported for compressed files. Compressor = %s' % header['compressor'])
 
         idx = int(idx)
