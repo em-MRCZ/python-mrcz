@@ -27,7 +27,7 @@ except ImportError as e:
         raise ImportError('Get the backport for `concurrent.futures` for Py2.7 as `pip install futures`')
     raise e
 from mrcz.__version__ import __version__
-from distutils.version import StrictVersion
+from packaging.version import Version
 
 import logging
 logger = logging.getLogger('MRCZ')
@@ -195,7 +195,7 @@ def _getMRCZVersion(label):
 
     Returns
     -------
-    version: Optional[distutils.version.StrictVersion]
+    version: Optional[packaging.version.Version]
         areturns ``None`` if `label` cannot be parsed.
     """
     if isinstance(label, bytes):
@@ -207,7 +207,7 @@ def _getMRCZVersion(label):
 
     label = label[4:]
     try:
-        version = StrictVersion(label)
+        version = Version(label)
         return version
     except ValueError:
         return None
@@ -537,7 +537,7 @@ def readMRCHeader(MRCfilename, slices=None, endian='le', fileConvention = 'ccpem
             # is essentially unknown (and wrong). So we have this version 
             # check where we force slices to be 1 (i.e. we assume it is a 
             # stack of 2D images).
-            if mrcz_version is not None and mrcz_version < StrictVersion('0.5.0'):
+            if mrcz_version is not None and mrcz_version < Version('0.5.0'):
                 logger.warning('MRCZ version < 0.5.0 for file {}, assuming slices == 1.'.format(MRCfilename))
                 slices = 1
             else:
