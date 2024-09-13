@@ -27,8 +27,8 @@ Package and upload
 Build a source distribution and a wheel for Windows and the latest Python version
 as:
 
-    python setup.py sdist bdist_wheel upload -r pypi
-
+    python setup.py sdist bdist_wheel 
+    twine upload --repository pypi dist/mrcz*
 
 To build the `conda-forge` recipe first copy the SHA hash from the latest release
 `mrcz-X.Y.Z.tar.gz` on pypi:
