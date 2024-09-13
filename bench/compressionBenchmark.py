@@ -158,7 +158,7 @@ print( "TODO: test read/write times" )
 
 #print( "Compression time: %f s" %(t1-t0) )
 #print( "Original DM4 size: %d MB" % (originalBytes /(2**20)) )
-#uncompressedBytes = np.product( dm4image.shape )
+#uncompressedBytes = np.prod( dm4image.shape )
 #print( "UNcompressed size: %d MB" % (uncompressedBytes/(2**20)) )
 #print( "Compressed size: %d MB" % (header['compressedBytes']/(2**20)) )
 #print( "Effective compression ratio: %d %% " % (100.0 * originalBytes/header['compressedBytes']) )
