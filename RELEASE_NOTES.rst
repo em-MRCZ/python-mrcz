@@ -1,6 +1,6 @@
-0.5.6
+0.5.7
 -----
-* TODO
+* Renamed `np.product` to `np.prod` as the old name is deprecated in NumPy 2.0.
 
 0.5.6
 -----
