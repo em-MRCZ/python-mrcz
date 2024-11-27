@@ -1,4 +1,5 @@
 setuptools
 numpy>=1.8
+packaging
 futures;python_version<"3.0"
 enum34;python_version<"3.0"

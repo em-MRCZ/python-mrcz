@@ -573,9 +573,9 @@ def test(verbosity=2):
     
     theSuite = unittest.TestSuite()
 
-    theSuite.addTest(unittest.makeSuite(PythonMrczTests))
+    theSuite.addTest(unittest.defaultTestLoader.loadTestsFromTestCase(PythonMrczTests))
     if cmrczProg is not None:
-        theSuite.addTest(unittest.makeSuite(PythonToCMrczTests))
+        theSuite.addTest(unittest.defaultTestLoader.loadTestsFromTestCase(PythonToCMrczTests))
 
     test_result = unittest.TextTestRunner(verbosity=verbosity).run(theSuite)
     return test_result

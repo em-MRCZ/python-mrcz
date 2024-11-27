@@ -1,7 +1,6 @@
 import glob, sys, os, os.path as path
 import numpy as np
 import mrcz
-from distutils.version import StrictVersion
 import shutil
 
 args = sys.argv
