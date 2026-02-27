@@ -1,3 +1,8 @@
+0.5.8
+-----
+* Suppress warnings about SyntaxError: invalid escape sequences.
+* Switch to using `pyproject.toml` over `setup.py`.
+
 0.5.7
 -----
 * Renamed `np.product` to `np.prod` as the old name is deprecated in NumPy 2.0.

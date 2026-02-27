@@ -2,11 +2,7 @@ Preliminaries
 -------------
 
 * Ensure that `RELEASE_NOTES.rst` has up-to-date release notes.
-
 * Ensure that there are no branches in the version in `setup.py`.
-
-* Check the test results from Appveyor and TravisCI.
-
 * Push any latest changes.
 
 Release

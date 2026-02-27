@@ -2,7 +2,7 @@
 
 # Jinja variables help maintain the recipe as you'll update the version only here.
 {% set name = "mrcz" %}
-{% set version = "0.5.7" %}
+{% set version = "0.5.8" %}
 {% set sha256 = "77aa30bcd81afb5382f6b76598226bee69f407415c871cbbd03eb4f63abdb658" %}
 # sha256 is the prefered checksum -- you can get it for a file with:
 #  `openssl sha256 <file name>`.
