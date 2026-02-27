@@ -25,7 +25,7 @@ dependencies = [
     "numpy"
     ]
 [tool.setuptools]
-package-dir ={"" = "mrcz"}
+packages = ["mrcz"]
 
 [tool.setuptools_scm]
 write_to = "mrcz/__version__.py"

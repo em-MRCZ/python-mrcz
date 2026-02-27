@@ -1,3 +1,8 @@
+0.5.9
+-----
+* Did not properly specify how to find source files so 0.5.8 wheel was broken.
+  (In my defense I've used `src\<package>` builds for almost five years now.)
+
 0.5.8
 -----
 * Suppress warnings about SyntaxError: invalid escape sequences.
