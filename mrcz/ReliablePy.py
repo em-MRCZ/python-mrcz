@@ -398,7 +398,7 @@ class ReliablePy(object):
         Image size is not stored anywhere obvious in Relion, so it must be passed in in terms of 
         it's shape in [y,x]
         """
-        if box == None:
+        if box is None:
             try: 
                 box = self.star[b'data_model_general'][b'OriginalImageSize']
             except:
@@ -570,7 +570,7 @@ class ReliablePy(object):
         Outputs a relion ..._data.star file that has been pruned, regrouped, etc. to outputName
         """
         
-        if outputName == None:
+        if outputName is None:
             # Need to store input star names, and figure out which was the last loaded particles.star file.
             # [outFront, outExt] = os.path.splitext()
             raise IOError( "Default filenames for saveDataStar not implemented yet" )
@@ -652,11 +652,11 @@ class ReliablePy(object):
         # kept track of in Relion with Magnification and DetectorPixelSize (which
         # defaults to 14.0)
         
-        if pixelsize == None:
+        if pixelsize is None:
             # Detector pixel size in um, we need pixelsize in Angstrom
             pixelsize = self.star[b'data_'][b'DetectorPixelSize'][0]*1E4 / self.star[b'data_'][b'Magnification'][0]
             print( "Found pixelsize of %0.f" % pixelsize )
-        if mag == None:
+        if mag is None:
             print( "Using Relion magnification of %.f and DSTEP=%.1f" % ( self.star[b'data_'][b'Magnification'][0], self.star[b'data_'][b'DetectorPixelSize'][0]) )
             print( "For a K2 (DSTEP=5.0) the appropriate magnification would be %0.f" % 50000/pixelsize )
         else:

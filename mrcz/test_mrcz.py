@@ -23,7 +23,7 @@ def which(program):
         program_ext = os.path.splitext(program)[1]
         if program_ext == '':
             prog_exe = which(program + '.exe')
-            if prog_exe != None:
+            if prog_exe is not None:
                 return prog_exe
             return which(program + '.com')
             
