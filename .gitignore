@@ -7,3 +7,4 @@ mrcz.wiki
 doc/_build
 mrcz/__version__.py
 .vscode
+uv.lock
