@@ -2,7 +2,10 @@ Preliminaries
 -------------
 
 * Ensure that `RELEASE_NOTES.rst` has up-to-date release notes.
-* Ensure that there are no branches in the version in `setup.py`.
+* Ensure the working tree is clean.  `setuptools-scm` derives the version from
+  the git tag, and with `only-version`/`no-local-version` set it reports the
+  bare tag, so uncommitted changes get shipped under a version that claims to
+  be that tag.
 * Push any latest changes.
 
 Release
@@ -23,8 +26,14 @@ Package and upload
 Build a source distribution and a wheel for Windows and the latest Python version
 as:
 
-    uv run --active -m build . --wheel --sdist
-    twine upload --repository pypi dist/mrcz*
+    rm -rf build dist
+    uv run --active --with build -m build . --wheel --sdist
+    uv run --active --with twine -m twine upload --repository pypi dist/mrcz*
+
+Note that `build` is a build *frontend*, not a build requirement, so it is not
+in `pyproject.toml` and has to be injected with `--with`.  The stale `build/`
+directory left behind by setuptools shadows it as a namespace package when run
+from the repo root, hence the `rm -rf` first.
 
 To build the `conda-forge` recipe first copy the SHA hash from the latest release
 `mrcz-X.Y.Z.tar.gz` on pypi:
@@ -39,6 +48,6 @@ to:
 Finally
 -------
 
-* Increment the version enumerator in `setup.py` and push.
+There is no version to increment; the next `git tag -a vX.Y.Z` sets it.
 
 
