@@ -1,3 +1,7 @@
+0.5.10
+------
+- Remove use of `distutils` as it is deprecated. Using `packaging` instead.
+
 0.5.9
 -----
 * Did not properly specify how to find source files so 0.5.8 wheel was broken.
