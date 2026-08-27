@@ -1,3 +1,125 @@
+0.6.0
+-----
+Compatibility release. ``mrcz`` was non-functional on NumPy 2.x: every MRC read
+raised ``TypeError`` and ``readDM4`` could not parse anything. 19 test errors to
+zero.
+
+Compatibility
+~~~~~~~~~~~~~
+
+* NumPy 2.x. ``int(np.fromfile(..., count=1))`` on the header path raised
+  ``TypeError``, breaking every ``readMRC``. ``ndarray.tostring()`` (removed in
+  2.0) broke ``readDM4`` in five places. ``np.arange()`` on a shape-(1,) array
+  broke the DM4 struct-tag parser. Header scalars are now written via
+  ``np.array(value, dtype=...)`` and the MRC mode computed as a Python ``int``,
+  so NEP 50 promotion cannot change it.
+* Python 3.13+. ``unittest.makeSuite`` was removed, so ``mrcz.test()`` was
+  already broken. Tests are now ``pytest``; ``mrcz.test()`` is a thin
+  ``pytest.main()`` shim importing ``pytest`` lazily.
+* Fixed the invalid escape sequences (``'\AA'``, ``'\mum'``) rather than
+  suppressing their ``SyntaxWarning``, and dropped the ``warnings.filterwarnings``
+  call 0.5.8 added to ``__init__.py``. Both spellings give the same string at
+  runtime, so callers are unaffected.
+* Removed the Python 2 scaffolding: ``__future__`` imports, the
+  ``concurrent.futures`` backport fallbacks (one referenced an un-imported
+  ``sys``), ``u''`` prefixes, ``class Foo(object)``. ``logger.warn`` ->
+  ``logger.warning``, ``== None`` -> ``is None``, and bare ``except:`` clauses
+  now name their exceptions.
+* Added type hints to all public signatures, and snake_case aliases
+  (``read_mrc``, ``write_mrc``, ``read_dm4``, ...) bound to the same objects, so
+  the camelCase names and downstream consumers such as ``hyperspy`` are
+  unaffected.
+
+Compression backends
+~~~~~~~~~~~~~~~~~~~~
+
+* ``blosc2`` is now preferred for reading, as it decompresses both the blosc1
+  (version-2) and blosc2 (version-5) chunk formats.
+* ``writeMRC`` gained ``backend``: ``None`` (default), ``'blosc1'`` or
+  ``'blosc2'``. The default resolves to ``'blosc1'`` whenever it can emit the
+  requested codec, so output is unchanged unless asked. ``'blosc2'`` writes
+  version-5 chunks, which ``mrcz < 0.6`` cannot read.
+* No new header flag was needed: chunk byte 0 is already the format version, and
+  the MRCZ spec already treats the **MODE** codec number as advisory. Reads
+  surface ``header['bloscFormat']`` (1 or 2) and ``header['backend']``.
+* The codec enumeration gained the blosc2-only codecs, 7-15: ``ndlz``,
+  ``zfp_acc``, ``zfp_prec``, ``zfp_rate``, ``openhtj2k``, ``grok``, ``openzl``,
+  ``j2k``, ``htj2k``. Requesting one forces ``backend='blosc2'``. Two caveats:
+
+  - Most ship as separate plugin distributions and raise if absent. The blosc2
+    write path uses ``blosc2.compress2``, not the ``blosc2.compress`` shim, which
+    *silently falls back to zstd* and would write a file whose header names a
+    codec the chunk does not hold.
+  - The ``zfp_*`` family needs blosc2 NDArray metadata that per-frame MRCZ chunks
+    lack, so it barely compresses. A warning is logged. Prefer ``zstd``.
+
+* ``n_threads`` is now actually applied when decompressing; the old code assigned
+  ``blosc.nthreads``, which only rebinds a module global.
+* Removed the ``c-mrcz`` cross-compatibility tests. That project is long
+  undeveloped and the executable is absent everywhere, so the 15 tests had been
+  silently skipping. Written files are unchanged.
+
+Correctness fixes
+~~~~~~~~~~~~~~~~~
+
+Long-standing bugs unrelated to NumPy 2.x, each shipped broken for years because
+no test covered the path. Each now has a regression test confirmed to fail
+against the old code.
+
+* ``useMemmap=True`` returned the file header as image data. ``np.memmap`` maps
+  from byte 0 regardless of handle position and needs an explicit ``offset``. A
+  ``float32`` stack came back as ``[1.7e-44, 2.2e-44, ...]``.
+* ``dtype='uint4'`` did not round-trip. The low nibble decoded as
+  ``left_shift(x, 4) / 15``, i.e. ``floor(16a/15)``. Truncation hid it for every
+  value but 15, which decoded to 16. Now ``x & 0x0F``.
+* Big-endian files raised ``IndexError``: a wrong endianness guess indexed ``[0]``
+  into a 0-d array, and would have byteswapped an already-misdecoded value. The
+  bytes are now reinterpreted with ``.view()``.
+* ``header['packedBytes']`` was the tuple ``(0,)``; the ``[0]`` was missing, and
+  it decoded machine-native rather than at the file's byte order.
+* ``writeMRC`` mutated the caller's list, narrowing their ``float64`` or
+  ``complex128`` frames in place during what should be a read-only operation.
+* A one-element ``pixelsize`` corrupted three header fields: a shape-(1,) array
+  broadcast to (3, 3) and wrote nine floats over the cellsize field, the cell
+  angles, and the MAPC/MAPR/MAPS axis associations. More than three elements is
+  now a clear ``ValueError``.
+* The label count ignored the requested byte order, so big-endian files claimed
+  16777216 labels.
+* ``lz4hc`` was written with the ``lz4`` type code, contradicting
+  ``COMPRESSOR_ENUM``. This is the only change that alters bytes on disk: new
+  ``lz4hc`` files use mode 3002, not 2002. Existing files are unaffected, since
+  blosc records the codec in its own chunk header.
+* An unrecognized codec number escaped as a bare ``KeyError`` from the header
+  parser; now a ``ValueError`` naming the id.
+* ``readDM4`` now opens its file in a ``with`` block, so the handle is released
+  when parsing raises. Its ``verbose`` output goes to the ``'MRCZ'`` logger
+  instead of ``print``.
+
+Validation
+~~~~~~~~~~
+
+* A 17-file corpus covering every dtype, pixel unit, compressor, list layout and
+  JSON extended header was written before and after and compared by SHA-256: all
+  byte-identical, ``lz4hc`` aside.
+* 21 real files written by 0.3.6 through 0.5.6 (uncompressed and zstd; uint16,
+  uint32, float32, complex64; monolithic, list-of-2D and multi-slice list-of-3D)
+  read identically under 0.5.10 and this release, pixels and every shared header
+  key. Files written with the default backend remain readable by 0.5.10; those
+  written with ``backend='blosc2'`` fail there with a blosc error rather than
+  misreading.
+* ``readDM4`` gained coverage for the first time, via a synthetic DM4 fixture
+  exercising nested tag directories, anonymous directory auto-numbering, and the
+  array, singleton and struct payloads.
+
+Packaging
+~~~~~~~~~
+
+* Added ``compression``, ``blosc2``, ``faster-json`` and ``dev`` extras, trove
+  classifiers, project URLs, and a ``pytest`` config treating new deprecation
+  warnings as failures.
+* ``MANIFEST.in`` referenced ``RELEASE_NOTES.txt`` but the file is
+  ``RELEASE_NOTES.rst``, so release notes were missing from the sdist.
+
 0.5.10
 ------
 - Remove use of `distutils` as it is deprecated. Using `packaging` instead.

@@ -16,7 +16,17 @@ Required deviations from CCPEM MRC2014 standard
 
    The compressor enumeration is::
 
-	   { 0:None, 1:'blosclz', 2:'lz4', 3:'lz4hc', 4:'snappy', 5:'zlib', 6:'zstd' }
+	   { 0:None, 1:'blosclz', 2:'lz4', 3:'lz4hc', 4:'snappy', 5:'zlib', 6:'zstd',
+	     7:'ndlz', 8:'zfp_acc', 9:'zfp_prec', 10:'zfp_rate',
+	     11:'openhtj2k', 12:'grok', 13:'openzl', 14:'j2k', 15:'htj2k' }
+
+   Numbers 0-6 are what ``c-blosc1`` can emit. Numbers 7 and above exist only
+   in ``c-blosc2``, so a file using one carries version-5 chunks (see item 2)
+   and needs ``blosc2``, in several cases plus a separate plugin package.
+
+   *Note*: before 0.6.0 this library wrote ``'lz4hc'`` as 2 rather than 3, so
+   files from ``mrcz <= 0.5.10`` identify lz4hc data as ``'lz4'``. Pixel data is
+   unaffected, since the codec actually used is recorded in the blosc chunk.
 
    Unpacking is generally performed as follows::
 
@@ -31,6 +41,18 @@ Required deviations from CCPEM MRC2014 standard
    ``c-blosc`` header format specification may be found here:
 
    https://github.com/Blosc/c-blosc/blob/master/README_HEADER.rst
+
+   Byte 0 of that header is the chunk format version, and is the authoritative
+   record of which library wrote the data section::
+
+	   2 -> c-blosc1 chunks, readable by `blosc` and `blosc2`
+	   5 -> c-blosc2 chunks, readable only by `blosc2`
+
+   **MODE** names the codec but not the container, so a reader should consult
+   this byte to decide whether it can decode the file. ``mrcz`` writes
+   version-2 by default and reports ``header['bloscFormat']`` (``1`` or ``2``)
+   on read. Version-5 is written only for ``writeMRC(backend='blosc2')``, a
+   blosc2-only codec, or when ``blosc`` is absent.
 
    ``blosc`` is limited to ``2**31`` bytes per chunk. Chunking for compression is 
    accomplished by compressing each slice/frame in the z-axis with a separate 

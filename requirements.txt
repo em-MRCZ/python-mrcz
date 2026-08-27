@@ -1,4 +1,2 @@
-setuptools
-numpy>=1.8
-futures;python_version<"3.0"
-enum34;python_version<"3.0"
+numpy
+packaging

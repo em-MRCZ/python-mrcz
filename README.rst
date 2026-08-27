@@ -7,7 +7,7 @@ format with a highly efficient compressed variant, using the ``blosc``
 meta-compressor library to shrink files on disk and greatly accelerate file 
 input/output for the era of "Big Data" in electron and optical microscopy.
 
-Python versions 2.7, 3.4-3.6 are supported.
+Python versions 3.11 and newer are supported.
 
 ``mrcz`` is currently considered to be a `beta` development state.
 
@@ -25,7 +25,31 @@ type::
 ``mrcz`` has the following dependencies:
 
 * ``numpy``
-* ``blosc`` (optionally, but highly recommended)
+* ``packaging``
+* ``blosc`` (optional, but highly recommended)
+* ``blosc2`` (optional)
+
+Compression backends
+~~~~~~~~~~~~~~~~~~~~
+
+The two bindings are not interchangeable, because they emit different chunk
+formats:
+
+* ``blosc`` (c-blosc1) writes version-2 chunks, the only ones older ``mrcz`` can
+  read. It is the write default, so install it if anything else must read your
+  files.
+* ``blosc2`` (c-blosc2) reads **both** formats, so it is preferred for reading.
+  It writes version-5 chunks, used only when asked for, when a blosc2-only codec
+  is requested, or when ``blosc`` is absent.
+
+Installing neither disables compression; uncompressed MRC still works.
+
+Pass ``backend='blosc2'`` to opt in to version-5 chunks::
+
+    mrcz.writeMRC(image, 'out.mrcz', compressor='zstd', backend='blosc2')
+
+On read, ``header['bloscFormat']`` reports the format a file actually uses
+(``1`` or ``2``), detected from the chunk rather than a header flag.
 
 Feature List
 ------------

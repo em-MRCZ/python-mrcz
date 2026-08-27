@@ -1,1 +1,6 @@
-blosc>=1.4
+# c-blosc1 bindings: required to write interoperable MRCZ files.
+blosc>=1.11
+# c-blosc2 bindings: reads both chunk formats, preferred for decompression.
+blosc2>=3.0
+# Optional faster JSON encoder for the extended header.
+python-rapidjson

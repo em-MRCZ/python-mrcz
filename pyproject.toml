@@ -23,6 +23,35 @@ dependencies = [
     "numpy",
     "packaging"
     ]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Image Processing",
+    "Topic :: Scientific/Engineering :: Physics",
+    ]
+
+[project.urls]
+Homepage = "https://github.com/em-MRCZ/python-mrcz"
+Documentation = "http://python-mrcz.readthedocs.io/"
+Repository = "https://github.com/em-MRCZ/python-mrcz"
+
+[project.optional-dependencies]
+# `blosc` (c-blosc1) emits the version-2 chunks that the MRCZ specification and
+# `c-mrcz` expect, and is the only backend used for writing when it is present.
+compression = ["blosc>=1.11"]
+# `blosc2` (c-blosc2) reads both chunk formats and is preferred for
+# decompression, but it can only *write* version-5 chunks, which blosc1 and
+# `c-mrcz` cannot read. It also carries a much heavier dependency tree.
+blosc2 = ["blosc2>=3.0"]
+faster-json = ["python-rapidjson"]
+dev = ["pytest", "blosc>=1.11", "blosc2>=3.0"]
+
 [tool.setuptools]
 packages = ["mrcz"]
 
@@ -31,3 +60,12 @@ write_to = "mrcz/__version__.py"
 # Force simple x.y.z version output
 version_scheme = "only-version"
 local_scheme = "no-local-version"
+
+[tool.pytest.ini_options]
+testpaths = ["mrcz"]
+filterwarnings = [
+    "error::DeprecationWarning",
+    "error::PendingDeprecationWarning",
+    "error::SyntaxWarning",
+    "error::FutureWarning",
+    ]
